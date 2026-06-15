@@ -1,0 +1,5 @@
+.env
+__pycache__/
+*.pyc
+data/transcripts/*.json
+data/memos/*

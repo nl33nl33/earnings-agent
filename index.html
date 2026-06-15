@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earnings Research Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+	:root {
+		--bg:        #0a0e1a;
+		--bg2:       #0f1525;
+		--bg3:       #151d30;
+		--border:    #1e2d4a;
+		--border2:   #243552;
+		--text:      #c8d4e8;
+		--text2:     #6b82a8;
+		--text3:     #3d5278;
+		--amber:     #e8a030;
+		--amber2:    #f0b84a;
+		--green:     #2ecc8a;
+		--red:       #e05c6a;
+		--blue:      #4a9eff;
+		--mono:      'DM Mono', monospace;
+		--sans:      'DM Sans', sans-serif;
+	}
+
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+
+	body {
+		background: var(--bg);
+		color: var(--text);
+		font-family: var(--sans);
+		font-size: 14px;
+		line-height: 1.6;
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* ── HEADER ── */
+	header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 32px;
+		height: 56px;
+		border-bottom: 1px solid var(--border);
+		background: var(--bg2);
+		flex-shrink: 0;
+	}
+
+	.logo {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-family: var(--mono);
+		font-size: 13px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		color: var(--text);
+	}
+
+	.logo-dot {
+		width: 8px;
+		height: 8px;
+		background: var(--amber);
+		border-radius: 50%;
+		animation: pulse 2s infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.4; }
+	}
+
+	.header-meta {
+		font-family: var(--mono);
+		font-size: 11px;
+		color: var(--text3);
+		letter-spacing: 0.06em;
+	}
+
+	/* ── LAYOUT ── */
+	.app {
+		display: flex;
+		flex: 1;
+		overflow: hidden;
+		height: calc(100vh - 56px);
+	}
+
+	/* ── SIDEBAR ── */
+	.sidebar {
+		width: 280px;
+		flex-shrink: 0;
+		background: var(--bg2);
+		border-right: 1px solid var(--border);
+		display: flex;
+		flex-direction: column;
+		overflow-y: auto;
+	}
+
+	.sidebar-section {
+		padding: 24px;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.sidebar-label {
+		font-family: var(--mono);
+		font-size: 10px;
+		font-weight: 500;
+		letter-spacing: 0.12em;
+		color: var(--text3);
+		text-transform: uppercase;
+		margin-bottom: 16px;
+	}
+
+	.input-group {
+		margin-bottom: 14px;
+	}
+
+	.input-label {
+		font-size: 11px;
+		color: var(--text2);
+		margin-bottom: 6px;
+		display: block;
+		font-family: var(--mono);
+		letter-spacing: 0.04em;
+	}
+
+	input, select {
+		width: 100%;
+		background: var(--bg3);
+		border: 1px solid var(--border2);
+		color: var(--text);
+		font-family: var(--mono);
+		font-size: 13px;
+		padding: 9px 12px;
+		border-radius: 4px;
+		outline: none;
+		transition: border-color 0.15s;
+		appearance: none;
+	}
+
+	input:focus, select:focus {
+		border-color: var(--amber);
+	}
+
+	input::placeholder {
+		color: var(--text3);
+	}
+
+	input[type="text"] {
+		text-transform: uppercase;
+	}
+
+	.btn-analyze {
+		width: 100%;
+		background: var(--amber);
+		color: #0a0e1a;
+		font-family: var(--mono);
+		font-size: 12px;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		border: none;
+		padding: 11px;
+		border-radius: 4px;
+		cursor: pointer;
+		transition: background 0.15s, transform 0.1s;
+		margin-top: 4px;
+	}
+
+	.btn-analyze:hover {
+		background: var(--amber2);
+	}
+
+	.btn-analyze:active {
+		transform: scale(0.98);
+	}
+
+	.btn-analyze:disabled {
+		background: var(--border2);
+		color: var(--text3);
+		cursor: not-allowed;
+		transform: none;
+	}
+
+	/* ── QUICK PICKS ── */
+	.quick-picks {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 4px;
+	}
+
+	.quick-pick {
+		font-family: var(--mono);
+		font-size: 11px;
+		padding: 4px 10px;
+		background: var(--bg3);
+		border: 1px solid var(--border2);
+		color: var(--text2);
+		border-radius: 3px;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.quick-pick:hover {
+		border-color: var(--amber);
+		color: var(--amber);
+	}
+
+	/* ── ANALYSIS STEPS ── */
+	.steps-list {
+		padding: 0;
+	}
+
+	.step-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 9px 24px;
+		font-size: 12px;
+		color: var(--text3);
+		font-family: var(--mono);
+		transition: color 0.2s;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.step-item.running {
+		color: var(--amber);
+	}
+
+	.step-item.done {
+		color: var(--green);
+	}
+
+	.step-item.error {
+		color: var(--red);
+	}
+
+	.step-icon {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.step-icon svg {
+		width: 14px;
+		height: 14px;
+	}
+
+	.spinner {
+		width: 12px;
+		height: 12px;
+		border: 1.5px solid var(--amber);
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: spin 0.7s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+
+	/* ── SIGNAL BADGE ── */
+	.signal-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-family: var(--mono);
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		padding: 4px 10px;
+		border-radius: 3px;
+		text-transform: uppercase;
+	}
+
+	.signal-badge.positive { background: rgba(46,204,138,0.12); color: var(--green); border: 1px solid rgba(46,204,138,0.3); }
+	.signal-badge.negative { background: rgba(224,92,106,0.12); color: var(--red); border: 1px solid rgba(224,92,106,0.3); }
+	.signal-badge.neutral  { background: rgba(74,158,255,0.12); color: var(--blue); border: 1px solid rgba(74,158,255,0.3); }
+
+	/* ── MAIN CONTENT ── */
+	.main {
+		flex: 1;
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* ── EMPTY STATE ── */
+	.empty-state {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 60px 40px;
+		text-align: center;
+	}
+
+	.empty-grid {
+		position: absolute;
+		inset: 0;
+		background-image:
+			linear-gradient(var(--border) 1px, transparent 1px),
+			linear-gradient(90deg, var(--border) 1px, transparent 1px);
+		background-size: 40px 40px;
+		opacity: 0.3;
+		pointer-events: none;
+	}
+
+	.empty-inner {
+		position: relative;
+		z-index: 1;
+	}
+
+	.empty-title {
+		font-family: var(--mono);
+		font-size: 28px;
+		font-weight: 300;
+		letter-spacing: -0.02em;
+		color: var(--text);
+		margin-bottom: 12px;
+		line-height: 1.2;
+	}
+
+	.empty-title span {
+		color: var(--amber);
+	}
+
+	.empty-sub {
+		font-size: 14px;
+		color: var(--text2);
+		max-width: 420px;
+		line-height: 1.7;
+	}
+
+	.empty-features {
+		display: flex;
+		gap: 24px;
+		margin-top: 40px;
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.empty-feature {
+		background: var(--bg2);
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 16px 20px;
+		text-align: left;
+		width: 180px;
+	}
+
+	.feature-label {
+		font-family: var(--mono);
+		font-size: 10px;
+		color: var(--amber);
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		margin-bottom: 6px;
+	}
+
+	.feature-desc {
+		font-size: 12px;
+		color: var(--text2);
+		line-height: 1.5;
+	}
+
+	/* ── MEMO OUTPUT ── */
+	.memo-container {
+		padding: 32px 40px;
+		max-width: 900px;
+		width: 100%;
+		margin: 0 auto;
+		animation: fadeIn 0.4s ease;
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; transform: translateY(8px); }
+		to   { opacity: 1; transform: translateY(0); }
+	}
+
+	.memo-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		margin-bottom: 32px;
+		padding-bottom: 24px;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.memo-ticker {
+		font-family: var(--mono);
+		font-size: 36px;
+		font-weight: 300;
+		letter-spacing: -0.02em;
+		color: var(--text);
+		line-height: 1;
+	}
+
+	.memo-period {
+		font-family: var(--mono);
+		font-size: 14px;
+		color: var(--text2);
+		margin-top: 6px;
+	}
+
+	.memo-meta {
+		text-align: right;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 8px;
+	}
+
+	/* ── MEMO SECTIONS ── */
+	.memo-section {
+		margin-bottom: 32px;
+		animation: slideIn 0.3s ease both;
+	}
+
+	@keyframes slideIn {
+		from { opacity: 0; transform: translateY(6px); }
+		to   { opacity: 1; transform: translateY(0); }
+	}
+
+	.section-title {
+		font-family: var(--mono);
+		font-size: 10px;
+		font-weight: 500;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--amber);
+		margin-bottom: 16px;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.section-title::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--border);
+	}
+
+	/* ── KPI GRID ── */
+	.kpi-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+		gap: 12px;
+		margin-bottom: 16px;
+	}
+
+	.kpi-card {
+		background: var(--bg2);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		padding: 14px 16px;
+	}
+
+	.kpi-label {
+		font-family: var(--mono);
+		font-size: 10px;
+		color: var(--text3);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		margin-bottom: 6px;
+	}
+
+	.kpi-value {
+		font-family: var(--mono);
+		font-size: 20px;
+		font-weight: 400;
+		color: var(--text);
+		line-height: 1.1;
+	}
+
+	.kpi-sub {
+		font-family: var(--mono);
+		font-size: 11px;
+		color: var(--text2);
+		margin-top: 4px;
+	}
+
+	.kpi-growth {
+		font-family: var(--mono);
+		font-size: 12px;
+		margin-top: 4px;
+	}
+
+	.kpi-growth.up   { color: var(--green); }
+	.kpi-growth.down { color: var(--red); }
+
+	/* ── DELTA BOX ── */
+	.delta-box {
+		background: var(--bg2);
+		border: 1px solid var(--border);
+		border-left: 3px solid var(--amber);
+		border-radius: 4px;
+		padding: 18px 20px;
+		font-size: 13px;
+		color: var(--text);
+		line-height: 1.75;
+	}
+
+	.delta-box p { margin-bottom: 8px; }
+	.delta-box p:last-child { margin-bottom: 0; }
+	.delta-box strong { color: var(--text); font-weight: 600; }
+
+	/* ── TONE METER ── */
+	.tone-row {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		margin-bottom: 12px;
+	}
+
+	.tone-label {
+		font-family: var(--mono);
+		font-size: 11px;
+		color: var(--text2);
+		width: 60px;
+		flex-shrink: 0;
+	}
+
+	.tone-bar-bg {
+		flex: 1;
+		height: 6px;
+		background: var(--bg3);
+		border-radius: 3px;
+		overflow: hidden;
+	}
+
+	.tone-bar-fill {
+		height: 100%;
+		border-radius: 3px;
+		background: linear-gradient(90deg, var(--amber), var(--amber2));
+		transition: width 1s ease;
+	}
+
+	.tone-score {
+		font-family: var(--mono);
+		font-size: 13px;
+		color: var(--amber);
+		width: 32px;
+		text-align: right;
+	}
+
+	/* ── TAGS ── */
+	.tag-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 8px;
+	}
+
+	.tag {
+		font-family: var(--mono);
+		font-size: 11px;
+		padding: 3px 9px;
+		border-radius: 3px;
+		border: 1px solid var(--border2);
+		color: var(--text2);
+		background: var(--bg3);
+	}
+
+	.tag.new     { border-color: rgba(46,204,138,0.4); color: var(--green); background: rgba(46,204,138,0.07); }
+	.tag.rising  { border-color: rgba(232,160,48,0.4); color: var(--amber); background: rgba(232,160,48,0.07); }
+	.tag.falling { border-color: rgba(224,92,106,0.4); color: var(--red); background: rgba(224,92,106,0.07); }
+	.tag.warning { border-color: rgba(224,92,106,0.4); color: var(--red); background: rgba(224,92,106,0.07); }
+
+	/* ── GUIDANCE TABLE ── */
+	.guidance-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-family: var(--mono);
+		font-size: 12px;
+	}
+
+	.guidance-table th {
+		text-align: left;
+		font-size: 10px;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text3);
+		padding: 8px 12px;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.guidance-table td {
+		padding: 9px 12px;
+		border-bottom: 1px solid var(--border);
+		color: var(--text);
+		vertical-align: top;
+	}
+
+	.guidance-table tr:last-child td { border-bottom: none; }
+
+	.dir-badge {
+		display: inline-block;
+		font-size: 10px;
+		padding: 2px 7px;
+		border-radius: 2px;
+		font-weight: 500;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.dir-raised    { background: rgba(46,204,138,0.15); color: var(--green); }
+	.dir-lowered   { background: rgba(224,92,106,0.15); color: var(--red); }
+	.dir-maintained{ background: rgba(74,158,255,0.12); color: var(--blue); }
+	.dir-initiated { background: rgba(232,160,48,0.12); color: var(--amber); }
+	.dir-withdrawn { background: rgba(224,92,106,0.12); color: var(--red); }
+
+	/* ── NARRATIVE LIST ── */
+	.narrative-item {
+		background: var(--bg2);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		padding: 14px 16px;
+		margin-bottom: 8px;
+	}
+
+	.narrative-item-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 6px;
+	}
+
+	.narrative-topic {
+		font-family: var(--mono);
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--text);
+	}
+
+	.narrative-body {
+		font-size: 12px;
+		color: var(--text2);
+		line-height: 1.6;
+	}
+
+	/* ── QA SECTION ── */
+	.evasion-meter {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: 16px;
+	}
+
+	.evasion-label {
+		font-family: var(--mono);
+		font-size: 11px;
+		color: var(--text2);
+		width: 120px;
+	}
+
+	.concern-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 9px 14px;
+		background: var(--bg2);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		margin-bottom: 6px;
+		font-size: 12px;
+	}
+
+	.concern-topic { color: var(--text); font-family: var(--mono); }
+	.concern-quality { font-family: var(--mono); font-size: 11px; }
+	.concern-quality.direct  { color: var(--green); }
+	.concern-quality.evasive { color: var(--red); }
+	.concern-quality.partial { color: var(--amber); }
+
+	/* ── RED FLAGS / POSITIVES ── */
+	.flag-list { margin-top: 8px; }
+
+	.flag-item {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		padding: 8px 0;
+		border-bottom: 1px solid var(--border);
+		font-size: 12px;
+		color: var(--text2);
+		line-height: 1.5;
+	}
+
+	.flag-item:last-child { border-bottom: none; }
+	.flag-icon { flex-shrink: 0; margin-top: 1px; }
+
+	/* ── STATUS LOG ── */
+	.status-log {
+		padding: 32px 40px;
+		max-width: 900px;
+		width: 100%;
+		margin: 0 auto;
+	}
+
+	.status-title {
+		font-family: var(--mono);
+		font-size: 11px;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--text3);
+		margin-bottom: 20px;
+	}
+
+	.log-line {
+		font-family: var(--mono);
+		font-size: 12px;
+		color: var(--text2);
+		padding: 6px 0;
+		border-bottom: 1px solid var(--border);
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		animation: fadeIn 0.2s ease;
+	}
+
+	.log-line .ts {
+		color: var(--text3);
+		font-size: 11px;
+		width: 55px;
+		flex-shrink: 0;
+	}
+
+	.log-line.success { color: var(--green); }
+	.log-line.active  { color: var(--amber); }
+	.log-line.err     { color: var(--red); }
+
+	/* ── SCROLLBAR ── */
+	::-webkit-scrollbar { width: 6px; }
+	::-webkit-scrollbar-track { background: var(--bg); }
+	::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+	<div class="logo">
+		<div class="logo-dot"></div>
+		EARNINGS RESEARCH AGENT
+	</div>
+	<div class="header-meta">AI-POWERED INVESTMENT ANALYSIS</div>
+</header>
+
+<div class="app">
+
+	<!-- SIDEBAR -->
+	<aside class="sidebar">
+
+		<!-- Input form -->
+		<div class="sidebar-section">
+			<div class="sidebar-label">New Analysis</div>
+
+			<div class="input-group">
+				<label class="input-label">TICKER</label>
+				<input type="text" id="ticker" placeholder="NVDA" maxlength="6">
+			</div>
+
+			<div class="input-group">
+				<label class="input-label">YEAR</label>
+				<input type="number" id="year" value="2024" min="2018" max="2026">
+			</div>
+
+			<div class="input-group">
+				<label class="input-label">QUARTER</label>
+				<select id="quarter">
+					<option value="1">Q1</option>
+					<option value="2">Q2</option>
+					<option value="3" selected>Q3</option>
+					<option value="4">Q4</option>
+				</select>
+			</div>
+
+			<button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">
+				RUN ANALYSIS
+			</button>
+		</div>
+
+		<!-- Quick picks -->
+		<div class="sidebar-section">
+			<div class="sidebar-label">Quick Picks</div>
+			<div class="quick-picks">
+				<div class="quick-pick" onclick="quickPick('NVDA',2024,3)">NVDA Q3</div>
+				<div class="quick-pick" onclick="quickPick('MSFT',2024,2)">MSFT Q2</div>
+				<div class="quick-pick" onclick="quickPick('AAPL',2024,1)">AAPL Q1</div>
+				<div class="quick-pick" onclick="quickPick('META',2024,2)">META Q2</div>
+				<div class="quick-pick" onclick="quickPick('AMZN',2024,1)">AMZN Q1</div>
+				<div class="quick-pick" onclick="quickPick('GOOGL',2024,1)">GOOGL Q1</div>
+				<div class="quick-pick" onclick="quickPick('TSLA',2024,1)">TSLA Q1</div>
+				<div class="quick-pick" onclick="quickPick('AMD',2024,2)">AMD Q2</div>
+			</div>
+		</div>
+
+		<!-- Analysis steps -->
+		<div class="sidebar-section" style="border-bottom:none; flex:1;">
+			<div class="sidebar-label">Analysis Pipeline</div>
+			<div class="steps-list" id="stepsList">
+				<div class="step-item" id="step-1">
+					<div class="step-icon">○</div>
+					<span>KPI Extraction</span>
+				</div>
+				<div class="step-item" id="step-2">
+					<div class="step-icon">○</div>
+					<span>Tone Analysis</span>
+				</div>
+				<div class="step-item" id="step-3">
+					<div class="step-icon">○</div>
+					<span>Guidance Tracking</span>
+				</div>
+				<div class="step-item" id="step-4">
+					<div class="step-icon">○</div>
+					<span>Narrative Shifts</span>
+				</div>
+				<div class="step-item" id="step-5">
+					<div class="step-icon">○</div>
+					<span>Q&A Intelligence</span>
+				</div>
+			</div>
+		</div>
+
+	</aside>
+
+	<!-- MAIN CONTENT -->
+	<main class="main" id="mainContent">
+		<div class="empty-state" id="emptyState">
+			<div class="empty-grid"></div>
+			<div class="empty-inner">
+				<div class="empty-title">
+					Institutional research,<br><span>autonomously generated.</span>
+				</div>
+				<p class="empty-sub">
+					Enter a ticker and quarter to generate a hedge fund-style
+					investment memo with KPI analysis, tone scoring,
+					guidance tracking, and narrative shift detection.
+				</p>
+				<div class="empty-features">
+					<div class="empty-feature">
+						<div class="feature-label">KPI Extraction</div>
+						<div class="feature-desc">Revenue, margins, EPS vs guidance automatically parsed</div>
+					</div>
+					<div class="empty-feature">
+						<div class="feature-label">Tone Analysis</div>
+						<div class="feature-desc">CEO vs CFO confidence scoring with hedging detection</div>
+					</div>
+					<div class="empty-feature">
+						<div class="feature-label">Narrative Shifts</div>
+						<div class="feature-desc">New topics, dropped themes, strategic pivots flagged</div>
+					</div>
+					<div class="empty-feature">
+						<div class="feature-label">Delta View</div>
+						<div class="feature-desc">Quarter-over-quarter changes surfaced automatically</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</main>
+
+</div>
+
+<script>
+// ── STATE ──
+let isAnalyzing = false;
+
+function quickPick(ticker, year, quarter) {
+	document.getElementById('ticker').value = ticker;
+	document.getElementById('year').value = year;
+	document.getElementById('quarter').value = quarter;
+	startAnalysis();
+}
+
+function now() {
+	return new Date().toLocaleTimeString('en-US', {hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function resetSteps() {
+	for (let i = 1; i <= 5; i++) {
+		const el = document.getElementById(`step-${i}`);
+		el.className = 'step-item';
+		el.querySelector('.step-icon').innerHTML = '○';
+	}
+}
+
+function setStep(num, state) {
+	const el = document.getElementById(`step-${num}`);
+	el.className = `step-item ${state}`;
+	const icon = el.querySelector('.step-icon');
+	if (state === 'running') {
+		icon.innerHTML = '<div class="spinner"></div>';
+	} else if (state === 'done') {
+		icon.innerHTML = `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2">
+			<polyline points="2,7 5.5,10.5 12,3.5"/>
+		</svg>`;
+	} else if (state === 'error') {
+		icon.innerHTML = '✕';
+	}
+}
+
+function addLog(container, message, type = '') {
+	const line = document.createElement('div');
+	line.className = `log-line ${type}`;
+	line.innerHTML = `<span class="ts">${now()}</span><span>${message}</span>`;
+	container.appendChild(line);
+	container.scrollIntoView({behavior: 'smooth', block: 'end'});
+}
+
+async function startAnalysis() {
+	if (isAnalyzing) return;
+
+	const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+	const year = parseInt(document.getElementById('year').value);
+	const quarter = parseInt(document.getElementById('quarter').value);
+
+	if (!ticker) {
+		alert('Please enter a ticker symbol.');
+		return;
+	}
+
+	isAnalyzing = true;
+	document.getElementById('analyzeBtn').disabled = true;
+	document.getElementById('analyzeBtn').textContent = 'ANALYZING...';
+	resetSteps();
+
+	// Show status log
+	const main = document.getElementById('mainContent');
+	main.innerHTML = `
+		<div class="status-log" id="statusLog">
+			<div class="status-title">Analysis Log — ${ticker} Q${quarter} ${year}</div>
+		</div>
+	`;
+	const log = document.getElementById('statusLog');
+
+	addLog(log, `Starting analysis for ${ticker} Q${quarter} ${year}...`, 'active');
+
+	try {
+		const response = await fetch('/analyze', {
+			method: 'POST',
+			headers: {'Content-Type': 'application/json'},
+			body: JSON.stringify({ticker, year, quarter})
+		});
+
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let analysisData = null;
+
+		while (true) {
+			const {done, value} = await reader.read();
+			if (done) break;
+
+			const text = decoder.decode(value);
+			const lines = text.split('\n');
+
+			for (const line of lines) {
+				if (!line.startsWith('data: ')) continue;
+				try {
+					const msg = JSON.parse(line.slice(6));
+					const {event, payload} = msg;
+
+					if (event === 'status') {
+						addLog(log, payload.message, '');
+					}
+
+					else if (event === 'step') {
+						setStep(payload.step, payload.status === 'running' ? 'running' : 'done');
+						addLog(log, payload.label, payload.status === 'done' ? 'success' : 'active');
+					}
+
+					else if (event === 'error') {
+						addLog(log, `Error: ${payload.message}`, 'err');
+					}
+
+					else if (event === 'complete') {
+						analysisData = payload;
+						addLog(log, `Analysis complete — Signal: ${payload.signal.toUpperCase()}`, 'success');
+						setTimeout(() => renderMemo(payload), 600);
+					}
+
+				} catch(e) {}
+			}
+		}
+
+	} catch(err) {
+		addLog(log, `Connection error: ${err.message}`, 'err');
+	} finally {
+		isAnalyzing = false;
+		document.getElementById('analyzeBtn').disabled = false;
+		document.getElementById('analyzeBtn').textContent = 'RUN ANALYSIS';
+	}
+}
+
+function renderMemo(data) {
+	const {ticker, period, signal, analysis} = data;
+	const {kpis, tone, guidance, narrative, qa_intelligence, delta_summary} = analysis;
+
+	const main = document.getElementById('mainContent');
+	main.innerHTML = '';
+
+	const container = document.createElement('div');
+	container.className = 'memo-container';
+
+	// ── HEADER ──
+	container.innerHTML += `
+		<div class="memo-header">
+			<div>
+				<div class="memo-ticker">${ticker}</div>
+				<div class="memo-period">${period} Earnings Call</div>
+			</div>
+			<div class="memo-meta">
+				<span class="signal-badge ${signal}">${signal} signal</span>
+				<div style="font-family:var(--mono);font-size:11px;color:var(--text3);">${analysis.date || ''}</div>
+			</div>
+		</div>
+	`;
+
+	// ── DELTA ──
+	if (delta_summary && delta_summary.length > 10) {
+		const deltaFormatted = delta_summary
+			.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+			.replace(/^##.*$/gm, '')
+			.split('\n').filter(l => l.trim())
+			.map(l => `<p>${l}</p>`).join('');
+
+		container.innerHTML += `
+			<div class="memo-section">
+				<div class="section-title">Quarter-over-Quarter Delta</div>
+				<div class="delta-box">${deltaFormatted}</div>
+			</div>
+		`;
+	}
+
+	// ── KPIs ──
+	if (kpis && !kpis.error) {
+		const rev = kpis.revenue || {};
+		const gm  = kpis.gross_margin || {};
+		const op  = kpis.operating_income || {};
+		const eps = kpis.eps || {};
+
+		let kpiCards = '';
+
+		if (rev.reported) kpiCards += `
+			<div class="kpi-card">
+				<div class="kpi-label">Revenue</div>
+				<div class="kpi-value">${rev.reported}</div>
+				${rev.yoy_growth ? `<div class="kpi-growth ${rev.yoy_growth.includes('-') ? 'down' : 'up'}">${rev.yoy_growth} YoY</div>` : ''}
+				${rev.vs_guidance ? `<div class="kpi-sub">${rev.vs_guidance}</div>` : ''}
+			</div>`;
+
+		if (gm.reported) kpiCards += `
+			<div class="kpi-card">
+				<div class="kpi-label">Gross Margin</div>
+				<div class="kpi-value">${gm.reported}</div>
+				<div class="kpi-sub" style="color:${gm.trend==='expanding'?'var(--green)':gm.trend==='contracting'?'var(--red)':'var(--text2)'}">
+					${gm.trend || ''}
+				</div>
+			</div>`;
+
+		if (op.reported) kpiCards += `
+			<div class="kpi-card">
+				<div class="kpi-label">Operating Income</div>
+				<div class="kpi-value">${op.reported}</div>
+				${op.margin ? `<div class="kpi-sub">Margin: ${op.margin}</div>` : ''}
+			</div>`;
+
+		if (eps.reported) kpiCards += `
+			<div class="kpi-card">
+				<div class="kpi-label">EPS</div>
+				<div class="kpi-value">${eps.reported}</div>
+				${eps.vs_consensus ? `<div class="kpi-sub">${eps.vs_consensus}</div>` : ''}
+			</div>`;
+
+		if (kpiCards) {
+			container.innerHTML += `
+				<div class="memo-section">
+					<div class="section-title">Key Financial Metrics</div>
+					<div class="kpi-grid">${kpiCards}</div>
+				</div>`;
+		}
+
+		// Segments
+		const segs = kpis.segment_highlights || [];
+		if (segs.length) {
+			let segHtml = '';
+			segs.forEach(s => {
+				segHtml += `
+					<div class="concern-item">
+						<span class="concern-topic">${s.name}</span>
+						<span style="font-family:var(--mono);font-size:12px;color:var(--text)">${s.revenue}</span>
+						<span class="kpi-growth ${(s.growth||'').includes('-')?'down':'up'}" style="font-family:var(--mono);font-size:12px;">${s.growth||''}</span>
+					</div>`;
+			});
+			container.innerHTML += `
+				<div class="memo-section">
+					<div class="section-title">Segment Breakdown</div>
+					${segHtml}
+				</div>`;
+		}
+	}
+
+	// ── GUIDANCE ──
+	if (guidance && !guidance.error) {
+		const changes = guidance.guidance_changes_vs_prior || [];
+		if (changes.length) {
+			let rows = changes.map(c => `
+				<tr>
+					<td>${c.metric || ''}</td>
+					<td><span class="dir-badge dir-${(c.direction||'').toLowerCase()}">${c.direction||''}</span></td>
+					<td style="color:var(--text2)">${c.prior_guidance || '—'}</td>
+					<td>${c.new_guidance || '—'}</td>
+				</tr>`).join('');
+
+			container.innerHTML += `
+				<div class="memo-section">
+					<div class="section-title">Guidance Changes</div>
+					<table class="guidance-table">
+						<thead><tr>
+							<th>Metric</th><th>Direction</th><th>Prior</th><th>New</th>
+						</tr></thead>
+						<tbody>${rows}</tbody>
+					</table>
+				</div>`;
+		}
+	}
+
+	// ── TONE ──
+	if (tone && !tone.error) {
+		const score = tone.overall_confidence_score || 0;
+		const pct   = (score / 10) * 100;
+
+		let flagsHtml = '';
+		const redFlags = tone.red_flags || [];
+		const positives = tone.standout_positive || [];
+
+		if (redFlags.length) {
+			flagsHtml += '<div class="flag-list">';
+			redFlags.forEach(f => {
+				flagsHtml += `<div class="flag-item">
+					<span class="flag-icon" style="color:var(--red)">⚠</span>
+					<span>${f}</span></div>`;
+			});
+			flagsHtml += '</div>';
+		}
+
+		if (positives.length) {
+			flagsHtml += '<div class="flag-list" style="margin-top:8px">';
+			positives.slice(0,4).forEach(p => {
+				flagsHtml += `<div class="flag-item">
+					<span class="flag-icon" style="color:var(--green)">✓</span>
+					<span>${p}</span></div>`;
+			});
+			flagsHtml += '</div>';
+		}
+
+		container.innerHTML += `
+			<div class="memo-section">
+				<div class="section-title">Management Tone</div>
+				<div style="margin-bottom:16px;">
+					<div class="tone-row">
+						<div class="tone-label">Confidence</div>
+						<div class="tone-bar-bg">
+							<div class="tone-bar-fill" style="width:${pct}%"></div>
+						</div>
+						<div class="tone-score">${score}/10</div>
+					</div>
+					<div style="font-size:12px;color:var(--text2);line-height:1.6;margin-top:8px;">
+						${tone.confidence_rationale || ''}
+					</div>
+					<div style="display:flex;gap:16px;margin-top:12px;font-family:var(--mono);font-size:11px;">
+						<span>CEO: <span style="color:var(--text)">${tone.ceo_tone || 'N/A'}</span></span>
+						<span>CFO: <span style="color:var(--text)">${tone.cfo_tone || 'N/A'}</span></span>
+						${tone.ceo_cfo_divergence ? `<span style="color:var(--red)">⚠ Divergence detected</span>` : ''}
+					</div>
+				</div>
+				${flagsHtml}
+			</div>`;
+	}
+
+	// ── NARRATIVE ──
+	if (narrative && !narrative.error) {
+		const newTopics  = narrative.new_topics_introduced || [];
+		const increasing = narrative.topics_increasing_in_emphasis || [];
+		const dropping   = narrative.topics_decreasing_or_dropped || [];
+		const risks      = narrative.risk_factors_mentioned || [];
+
+		let narHtml = '';
+
+		if (narrative.key_narrative_delta) {
+			narHtml += `<div class="delta-box" style="margin-bottom:16px;border-left-color:var(--blue)">
+				${narrative.key_narrative_delta}
+			</div>`;
+		}
+
+		newTopics.forEach(t => {
+			narHtml += `<div class="narrative-item">
+				<div class="narrative-item-header">
+					<span class="tag new">NEW</span>
+					<span class="narrative-topic">${t.topic}</span>
+				</div>
+				<div class="narrative-body">${t.significance || ''}</div>
+			</div>`;
+		});
+
+		increasing.forEach(t => {
+			narHtml += `<div class="narrative-item">
+				<div class="narrative-item-header">
+					<span class="tag rising">↑ RISING</span>
+					<span class="narrative-topic">${t.topic}</span>
+				</div>
+				<div class="narrative-body">${t.evidence || ''}</div>
+			</div>`;
+		});
+
+		dropping.forEach(t => {
+			narHtml += `<div class="narrative-item">
+				<div class="narrative-item-header">
+					<span class="tag falling">↓ DROPPING</span>
+					<span class="narrative-topic">${t.topic}</span>
+				</div>
+				<div class="narrative-body">${t.note || ''}</div>
+			</div>`;
+		});
+
+		if (narHtml) {
+			container.innerHTML += `
+				<div class="memo-section">
+					<div class="section-title">Narrative Shifts</div>
+					${narHtml}
+				</div>`;
+		}
+
+		// Risk factors
+		if (risks.length) {
+			let riskHtml = '<div class="flag-list">';
+			risks.forEach(r => {
+				const isNew = r.first_time_mentioned;
+				riskHtml += `<div class="flag-item">
+					<span class="flag-icon" style="color:var(--red)">⚠</span>
+					<div>
+						<span>${r.risk}</span>
+						${isNew ? `<span class="tag warning" style="margin-left:8px;font-size:10px;">FIRST MENTION</span>` : ''}
+						${r.management_response ? `<div style="color:var(--text3);font-size:11px;margin-top:3px;">${r.management_response}</div>` : ''}
+					</div>
+				</div>`;
+			});
+			riskHtml += '</div>';
+			container.innerHTML += `
+				<div class="memo-section">
+					<div class="section-title">Risk Factors</div>
+					${riskHtml}
+				</div>`;
+		}
+	}
+
+	// ── Q&A ──
+	if (qa_intelligence && qa_intelligence.qa_available) {
+		const concerns = qa_intelligence.top_analyst_concerns || [];
+		const evasion  = qa_intelligence.evasiveness_score || 0;
+
+		let qaHtml = `
+			<div class="evasion-meter">
+				<div class="evasion-label">Evasiveness</div>
+				<div class="tone-bar-bg" style="max-width:200px">
+					<div class="tone-bar-fill" style="width:${evasion*10}%;background:linear-gradient(90deg,var(--green),var(--red))"></div>
+				</div>
+				<div class="tone-score">${evasion}/10</div>
+			</div>`;
+
+		if (qa_intelligence.key_qa_takeaway) {
+			qaHtml += `<div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+				${qa_intelligence.key_qa_takeaway}</div>`;
+		}
+
+		concerns.forEach(c => {
+			const q = (c.management_response_quality || '').toLowerCase();
+			qaHtml += `<div class="concern-item">
+				<span class="concern-topic">${c.concern}</span>
+				<span class="concern-quality ${q}">${q}</span>
+			</div>`;
+		});
+
+		container.innerHTML += `
+			<div class="memo-section">
+				<div class="section-title">Q&A Intelligence</div>
+				${qaHtml}
+			</div>`;
+	}
+
+	// Footer
+	container.innerHTML += `
+		<div style="padding:24px 0;border-top:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;justify-content:space-between;">
+			<span>Generated by Earnings Research Agent</span>
+			<span>${new Date().toLocaleString()}</span>
+		</div>
+	`;
+
+	main.appendChild(container);
+	main.scrollTo({top: 0, behavior: 'smooth'});
+}
+</script>
+
+</body>
+</html>
