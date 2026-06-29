@@ -185,8 +185,17 @@ async def analyze(req: AnalyzeRequest):
                 None, lambda: tracker.record(req.ticker, analysis)
             )
 
+            yield send("status", {"message": "Generating memo..."})
+            await asyncio.sleep(0.1)
+
             memo_gen = MemoGenerator()
             result = memo_gen.generate(analysis)
+
+            # Send keepalive pings before final payload
+            # to prevent Railway from dropping the connection
+            for _ in range(3):
+                yield ": keepalive\n\n"
+                await asyncio.sleep(0.1)
 
             yield send("complete", {
                 "memo_text": result["memo_text"],
