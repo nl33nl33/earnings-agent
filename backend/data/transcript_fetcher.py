@@ -3,12 +3,13 @@ transcript_fetcher.py
 ---------------------
 Fetches earnings call transcripts from SEC EDGAR.
 Completely free, no API key needed, never blocked.
+CIK resolution uses SEC's official company_tickers.json —
+loaded once at startup, covers every US public company.
 """
 
 import json
 import time
 import requests
-import re
 import warnings
 from pathlib import Path
 from typing import Optional
@@ -22,52 +23,63 @@ load_dotenv()
 CACHE_DIR = Path(__file__).parent.parent.parent / "data" / "transcripts"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Known CIKs for common tickers
-KNOWN_CIKS = {
-    "MSFT": "0000789019",
-    "AAPL": "0000320193",
-    "GOOGL": "0001652044",
-    "GOOG":  "0001652044",
-    "AMZN": "0001018724",
-    "META": "0001326801",
-    "NVDA": "0001045810",
-    "TSLA": "0001318605",
-    "NFLX": "0001065280",
-    "AMD":  "0000002488",
-    "INTC": "0000050863",
-    "CRM":  "0001108524",
-    "ORCL": "0001341439",
-    "JPM":  "0000019617",
-    "GS":   "0000886982",
-    "BAC":  "0000070858",
+HEADERS = {
+    "User-Agent": "EarningsResearchAgent research@example.com",
+    "Accept-Encoding": "gzip, deflate",
+    "Host": "www.sec.gov",
 }
 
+# ---------------------------------------------------------------------------
+# CIK REGISTRY — loaded once at startup from SEC, covers all US public cos
+# ---------------------------------------------------------------------------
+
+def _load_cik_registry() -> dict:
+    try:
+        resp = requests.get(
+            "https://www.sec.gov/files/company_tickers.json",
+            headers={"User-Agent": "EarningsResearchAgent research@example.com"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        registry = {}
+        for entry in data.values():
+            ticker = entry.get("ticker", "").upper()
+            cik = str(entry.get("cik_str", "")).zfill(10)
+            if ticker and cik:
+                registry[ticker] = cik
+        print(f"[cik] Loaded {len(registry)} tickers from SEC EDGAR")
+        return registry
+    except Exception as e:
+        print(f"[cik] Failed to load registry: {e}")
+        return {}
+
+_CIK_REGISTRY = _load_cik_registry()
+
+
+# ---------------------------------------------------------------------------
+# MAIN CLASS
+# ---------------------------------------------------------------------------
 
 class TranscriptFetcher:
 
-    HEADERS = {
-        "User-Agent": "EarningsResearchAgent research@example.com",
-        "Accept-Encoding": "gzip, deflate",
-        "Host": "www.sec.gov",
-    }
-
     def __init__(self):
         self.session = requests.Session()
-        self.session.headers.update(self.HEADERS)
+        self.session.headers.update(HEADERS)
 
-    # ------------------------------------------------------------------
-    # MAIN PUBLIC METHOD
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # PUBLIC
+    # -----------------------------------------------------------------------
 
     def get_transcript(
         self,
         ticker: str,
         year: int,
         quarter: int,
-        force_refresh: bool = False
+        force_refresh: bool = False,
     ) -> Optional[dict]:
 
-        ticker = ticker.upper()
+        ticker = ticker.upper().strip()
         cache_path = self._cache_path(ticker, year, quarter)
 
         if not force_refresh and cache_path.exists():
@@ -77,14 +89,14 @@ class TranscriptFetcher:
                 data["source"] = "cache"
                 return data
 
-        print(f"[edgar] Searching SEC EDGAR for {ticker} Q{quarter} {year}...")
+        print(f"[edgar] Fetching {ticker} Q{quarter} {year}...")
 
-        cik = KNOWN_CIKS.get(ticker) or self._get_cik(ticker)
+        cik = _CIK_REGISTRY.get(ticker)
         if not cik:
-            print(f"[!] Could not find CIK for {ticker}")
+            print(f"[!] Ticker '{ticker}' not found in SEC registry")
             return None
 
-        print(f"[edgar] CIK: {cik}")
+        print(f"[edgar] CIK resolved: {cik}")
 
         result = self._find_transcript_in_filings(cik, ticker, year, quarter)
         if result:
@@ -94,33 +106,15 @@ class TranscriptFetcher:
         print(f"[!] No transcript found for {ticker} Q{quarter} {year}")
         return None
 
-    # ------------------------------------------------------------------
-    # GET CIK
-    # ------------------------------------------------------------------
-
-    def _get_cik(self, ticker: str) -> Optional[str]:
-        try:
-            url = f"https://www.sec.gov/cgi-bin/browse-edgar?company=&CIK={ticker}&type=8-K&dateb=&owner=include&count=5&search_text=&action=getcompany&output=atom"
-            resp = self.session.get(url, timeout=15)
-            soup = BeautifulSoup(resp.text, "lxml")
-            cik_tag = soup.find("cik")
-            if cik_tag:
-                return cik_tag.text.strip().zfill(10)
-        except Exception as e:
-            print(f"[cik error] {e}")
-        return None
-
-    # ------------------------------------------------------------------
-    # FIND TRANSCRIPT IN 8-K FILINGS
-    # Looks through all recent 8-K filings, wider date window
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # FIND TRANSCRIPT ACROSS 8-K FILINGS
+    # -----------------------------------------------------------------------
 
     def _find_transcript_in_filings(
         self, cik: str, ticker: str, year: int, quarter: int
     ) -> Optional[dict]:
 
         try:
-            # Get all 8-K filings for this company (up to 40)
             url = (
                 f"https://www.sec.gov/cgi-bin/browse-edgar"
                 f"?action=getcompany&CIK={cik}&type=8-K"
@@ -131,8 +125,6 @@ class TranscriptFetcher:
             entries = soup.find_all("entry")
             print(f"[edgar] Scanning {len(entries)} 8-K filings...")
 
-            # Build wide date window — entire year around the quarter
-            # This handles fiscal year differences across companies
             search_year_start = f"{year}-01-01"
             search_year_end = f"{year + 1}-06-30"
 
@@ -143,7 +135,6 @@ class TranscriptFetcher:
 
                 filing_date = updated.text[:10]
 
-                # Only look within a reasonable window
                 if not (search_year_start <= filing_date <= search_year_end):
                     continue
 
@@ -167,9 +158,9 @@ class TranscriptFetcher:
 
         return None
 
-    # ------------------------------------------------------------------
-    # EXTRACT TRANSCRIPT FROM FILING INDEX PAGE
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # EXTRACT TRANSCRIPT FROM A SINGLE FILING INDEX
+    # -----------------------------------------------------------------------
 
     def _extract_from_filing_index(
         self,
@@ -177,8 +168,9 @@ class TranscriptFetcher:
         ticker: str,
         year: int,
         quarter: int,
-        filing_date: str
+        filing_date: str,
     ) -> Optional[dict]:
+
         try:
             resp = self.session.get(index_url, timeout=15)
             if resp.status_code != 200:
@@ -186,33 +178,35 @@ class TranscriptFetcher:
 
             soup = BeautifulSoup(resp.text, "lxml")
 
-            # Look for exhibit files that might contain transcript
-            # Earnings transcripts are typically filed as EX-99.1
             exhibit_links = []
             for a in soup.find_all("a", href=True):
                 href = a["href"]
                 link_text = a.get_text(strip=True).lower()
 
                 is_exhibit = any(x in link_text for x in [
-                    "ex-99", "ex 99", "exhibit 99", "99.1", "transcript",
-                    "earnings", "press release"
+                    "ex-99", "ex 99", "exhibit 99", "99.1",
+                    "transcript", "earnings", "press release",
                 ])
-
                 is_document = href.endswith((".htm", ".html", ".txt"))
 
                 if is_exhibit and is_document:
-                    full_url = f"https://www.sec.gov{href}" if href.startswith("/") else href
+                    full_url = (
+                        f"https://www.sec.gov{href}"
+                        if href.startswith("/") else href
+                    )
                     exhibit_links.append(full_url)
 
-            # Also grab all .htm files from the filing as fallback
+            # Fallback: any .htm from the filing archives
             if not exhibit_links:
                 for a in soup.find_all("a", href=True):
                     href = a["href"]
                     if href.endswith((".htm", ".html")) and "/Archives/" in href:
-                        full_url = f"https://www.sec.gov{href}" if href.startswith("/") else href
+                        full_url = (
+                            f"https://www.sec.gov{href}"
+                            if href.startswith("/") else href
+                        )
                         exhibit_links.append(full_url)
 
-            # Try each exhibit
             for exhibit_url in exhibit_links[:5]:
                 time.sleep(0.3)
                 text = self._extract_text_from_url(exhibit_url)
@@ -235,9 +229,9 @@ class TranscriptFetcher:
 
         return None
 
-    # ------------------------------------------------------------------
-    # EXTRACT CLEAN TEXT FROM A URL
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # EXTRACT CLEAN TEXT FROM URL
+    # -----------------------------------------------------------------------
 
     def _extract_text_from_url(self, url: str) -> Optional[str]:
         try:
@@ -261,9 +255,9 @@ class TranscriptFetcher:
             print(f"[extract error] {e}")
         return None
 
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------------
     # HELPERS
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------------
 
     def _looks_like_transcript(self, text: str) -> bool:
         signals = [
@@ -319,9 +313,9 @@ class TranscriptFetcher:
         print(f"[cache] Saved to {path.name}")
 
 
-# ------------------------------------------------------------------
-# DEMO TRANSCRIPT
-# ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# DEMO TRANSCRIPT (used as fallback when EDGAR returns nothing)
+# ---------------------------------------------------------------------------
 
 DEMO_TRANSCRIPT = {
     "ticker": "NVDA",
@@ -383,7 +377,7 @@ For Q1, we expect gross margins in the mid-70s. New product ramps initially come
 margins but we expect margins to remain healthy and sustainable.
 """,
     "sections": {"prepared_remarks": "", "qa": ""},
-    "source": "demo"
+    "source": "demo",
 }
 
 
