@@ -18,6 +18,13 @@ from pydantic import BaseModel
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Add project root to path once at startup
+project_root = Path(__file__).parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from backend.database import save_analysis, get_credibility_claims, get_credibility_score
+
 
 class AnalyzeRequest(BaseModel):
     ticker: str
@@ -39,20 +46,19 @@ async def serve_credibility():
 
 @app.get("/api/credibility/{ticker}")
 async def get_credibility(ticker: str):
-    project_root = Path(__file__).parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
     from backend.agents.credibility_tracker import CredibilityTracker
     tracker = CredibilityTracker()
     history = tracker.get_history(ticker.upper())
+
+    # Also pull from Supabase and attach credibility score
+    score = get_credibility_score(ticker.upper())
+    history["supabase_score"] = score
+
     return JSONResponse(content=history)
 
 
 @app.get("/api/credibility")
 async def get_all_credibility():
-    project_root = Path(__file__).parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
     from backend.agents.credibility_tracker import CredibilityTracker
     tracker = CredibilityTracker()
     tickers = tracker.get_all_tickers()
@@ -71,10 +77,6 @@ async def get_all_credibility():
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest):
     try:
-        project_root = Path(__file__).parent
-        if str(project_root) not in sys.path:
-            sys.path.insert(0, str(project_root))
-
         from backend.data.transcript_fetcher import TranscriptFetcher
         from backend.agents.earnings_agent import EarningsAgent
         from backend.agents.memo_generator import MemoGenerator
@@ -143,6 +145,12 @@ async def analyze(req: AnalyzeRequest):
             "has_prior_comparison": prior_transcript is not None,
         }
 
+        # Save to Supabase — persists across redeploys
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: save_analysis(req.ticker, req.year, req.quarter, analysis)
+        )
+
+        # Save to credibility tracker
         tracker = CredibilityTracker()
         await asyncio.get_event_loop().run_in_executor(
             None, lambda: tracker.record(req.ticker, analysis)
@@ -170,4 +178,3 @@ async def analyze(req: AnalyzeRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
-    
