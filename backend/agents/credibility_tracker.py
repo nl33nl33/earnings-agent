@@ -5,16 +5,21 @@ Tracks management guidance accuracy over time.
 Every time a company reports earnings, we record what
 they guided for last quarter and whether they hit it.
 
-Stores data in data/credibility/ as JSON files.
+Now persisted in Supabase — survives redeploys permanently.
 """
 
 import json
-from pathlib import Path
 from datetime import datetime
 from typing import Optional
+from supabase import create_client, Client
+import os
+from dotenv import load_dotenv
 
-CREDIBILITY_DIR = Path(__file__).parent.parent.parent / "data" / "credibility"
-CREDIBILITY_DIR.mkdir(parents=True, exist_ok=True)
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 class CredibilityTracker:
@@ -27,53 +32,171 @@ class CredibilityTracker:
         """
         ticker = ticker.upper()
         period = analysis.get("period", "")
+        year, quarter = self._parse_period(period)
         date = analysis.get("date", datetime.now().strftime("%Y-%m-%d"))
         guidance = analysis.get("guidance", {})
         kpis = analysis.get("kpis", {})
 
-        # Load existing history
-        history = self._load_history(ticker)
-
-        # Build a record for this quarter
-        record = {
-            "period": period,
-            "date": date,
-            "guidance_given": self._extract_guidance_given(guidance),
-            "actuals": self._extract_actuals(kpis),
-            "accuracy_scores": [],
-            "overall_accuracy": None,
-        }
+        guidance_given = self._extract_guidance_given(guidance)
+        actuals = self._extract_actuals(kpis)
 
         # Score prior quarter's guidance against this quarter's actuals
-        if history.get("records"):
-            last_record = history["records"][-1]
-            scores = self._score_guidance(
-                last_record.get("guidance_given", {}),
-                record["actuals"],
-                last_record["period"],
+        prior = self._get_prior_record(ticker, year, quarter)
+        accuracy_scores = []
+        overall_accuracy = None
+
+        if prior:
+            prior_guidance = prior.get("guidance_given") or {}
+            if isinstance(prior_guidance, str):
+                prior_guidance = json.loads(prior_guidance)
+
+            accuracy_scores = self._score_guidance(
+                prior_guidance,
+                actuals,
+                prior.get("period", ""),
                 period
             )
-            last_record["accuracy_scores"] = scores
-            last_record["overall_accuracy"] = self._compute_overall(scores)
+            overall_accuracy = self._compute_overall(accuracy_scores)
 
-        # Add new record
-        history["records"].append(record)
-        history["ticker"] = ticker
-        history["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        history["overall_credibility"] = self._compute_credibility_score(history)
+            # Update prior record with accuracy scores
+            self._update_accuracy(
+                prior["id"],
+                accuracy_scores,
+                overall_accuracy
+            )
 
-        self._save_history(ticker, history)
-        return history
+        # Save this quarter's record
+        self._save_record(
+            ticker=ticker,
+            year=year,
+            quarter=quarter,
+            period=period,
+            date=date,
+            guidance_given=guidance_given,
+            actuals=actuals,
+            accuracy_scores=accuracy_scores,
+            overall_accuracy=overall_accuracy,
+        )
+
+        return self.get_history(ticker)
 
     def get_history(self, ticker: str) -> dict:
-        return self._load_history(ticker.upper())
+        """Get full credibility history for a ticker."""
+        try:
+            result = (
+                supabase.table("credibility_records")
+                .select("*")
+                .eq("ticker", ticker.upper())
+                .order("year", desc=False)
+                .order("quarter", desc=False)
+                .execute()
+            )
+            records = result.data or []
+
+            # Parse JSON fields
+            for r in records:
+                for field in ["guidance_given", "actuals", "accuracy_scores"]:
+                    if isinstance(r.get(field), str):
+                        try:
+                            r[field] = json.loads(r[field])
+                        except Exception:
+                            r[field] = {}
+
+            overall_credibility = self._compute_credibility_score({"records": records})
+
+            return {
+                "ticker": ticker.upper(),
+                "records": records,
+                "overall_credibility": overall_credibility,
+                "last_updated": records[-1]["created_at"] if records else None,
+            }
+        except Exception as e:
+            print(f"[credibility] Failed to get history: {e}")
+            return {"ticker": ticker, "records": [], "overall_credibility": None}
 
     def get_all_tickers(self) -> list:
-        files = CREDIBILITY_DIR.glob("*.json")
-        return sorted([f.stem for f in files])
+        """Get all tickers that have credibility records."""
+        try:
+            result = (
+                supabase.table("credibility_records")
+                .select("ticker")
+                .execute()
+            )
+            tickers = list(set(r["ticker"] for r in (result.data or [])))
+            return sorted(tickers)
+        except Exception as e:
+            print(f"[credibility] Failed to get tickers: {e}")
+            return []
 
     # ------------------------------------------------------------------
-    # EXTRACT GUIDANCE GIVEN THIS QUARTER
+    # SUPABASE READ / WRITE
+    # ------------------------------------------------------------------
+
+    def _save_record(
+        self,
+        ticker: str,
+        year: int,
+        quarter: int,
+        period: str,
+        date: str,
+        guidance_given: dict,
+        actuals: dict,
+        accuracy_scores: list,
+        overall_accuracy: Optional[str],
+    ):
+        try:
+            record = {
+                "ticker": ticker,
+                "year": year,
+                "quarter": quarter,
+                "period": period,
+                "date": date,
+                "guidance_given": json.dumps(guidance_given),
+                "actuals": json.dumps(actuals),
+                "accuracy_scores": json.dumps(accuracy_scores),
+                "overall_accuracy": overall_accuracy,
+            }
+            supabase.table("credibility_records").upsert(record).execute()
+            print(f"[credibility] Saved record for {ticker} {period}")
+        except Exception as e:
+            print(f"[credibility] Failed to save record: {e}")
+
+    def _get_prior_record(self, ticker: str, year: int, quarter: int) -> Optional[dict]:
+        """Get the most recent record before the current quarter."""
+        try:
+            prior_quarter = quarter - 1 if quarter > 1 else 4
+            prior_year = year if quarter > 1 else year - 1
+
+            result = (
+                supabase.table("credibility_records")
+                .select("*")
+                .eq("ticker", ticker)
+                .eq("year", prior_year)
+                .eq("quarter", prior_quarter)
+                .execute()
+            )
+            data = result.data or []
+            return data[0] if data else None
+        except Exception as e:
+            print(f"[credibility] Failed to get prior record: {e}")
+            return None
+
+    def _update_accuracy(
+        self,
+        record_id: int,
+        accuracy_scores: list,
+        overall_accuracy: str,
+    ):
+        try:
+            supabase.table("credibility_records").update({
+                "accuracy_scores": json.dumps(accuracy_scores),
+                "overall_accuracy": overall_accuracy,
+            }).eq("id", record_id).execute()
+        except Exception as e:
+            print(f"[credibility] Failed to update accuracy: {e}")
+
+    # ------------------------------------------------------------------
+    # EXTRACT GUIDANCE AND ACTUALS
     # ------------------------------------------------------------------
 
     def _extract_guidance_given(self, guidance: dict) -> dict:
@@ -87,10 +210,6 @@ class CredibilityTracker:
             "notable_items": guidance.get("notable_guidance_items", []),
         }
 
-    # ------------------------------------------------------------------
-    # EXTRACT ACTUALS REPORTED THIS QUARTER
-    # ------------------------------------------------------------------
-
     def _extract_actuals(self, kpis: dict) -> dict:
         return {
             "revenue": kpis.get("revenue", {}).get("reported"),
@@ -100,7 +219,7 @@ class CredibilityTracker:
         }
 
     # ------------------------------------------------------------------
-    # SCORE PRIOR GUIDANCE VS ACTUAL RESULTS
+    # SCORING
     # ------------------------------------------------------------------
 
     def _score_guidance(
@@ -108,37 +227,31 @@ class CredibilityTracker:
         guidance_given: dict,
         actuals: dict,
         guidance_period: str,
-        actual_period: str
+        actual_period: str,
     ) -> list:
         scores = []
 
-        # Revenue guidance vs actual
         if guidance_given.get("revenue") and actuals.get("revenue"):
-            score = self._assess_metric(
+            scores.append(self._assess_metric(
                 metric="Revenue",
                 guided=guidance_given["revenue"],
                 actual=actuals["revenue"],
                 vs_guidance=actuals.get("vs_guidance", "")
-            )
-            scores.append(score)
+            ))
 
-        # Gross margin guidance vs actual
         if guidance_given.get("gross_margin") and actuals.get("gross_margin"):
-            score = self._assess_metric(
+            scores.append(self._assess_metric(
                 metric="Gross Margin",
                 guided=guidance_given["gross_margin"],
                 actual=actuals["gross_margin"],
-            )
-            scores.append(score)
+            ))
 
-        # EPS guidance vs actual
         if guidance_given.get("eps") and actuals.get("eps"):
-            score = self._assess_metric(
+            scores.append(self._assess_metric(
                 metric="EPS",
                 guided=guidance_given["eps"],
                 actual=actuals["eps"],
-            )
-            scores.append(score)
+            ))
 
         return scores
 
@@ -147,13 +260,8 @@ class CredibilityTracker:
         metric: str,
         guided: str,
         actual: str,
-        vs_guidance: str = ""
+        vs_guidance: str = "",
     ) -> dict:
-        """
-        Determines if guidance was a beat, miss, or in-line.
-        Uses the vs_guidance field from KPI extraction when available,
-        otherwise makes a qualitative assessment.
-        """
         result = "in-line"
         confidence = "low"
         note = ""
@@ -173,7 +281,6 @@ class CredibilityTracker:
             confidence = "high"
             note = vs_guidance
         else:
-            # Qualitative comparison
             note = f"Guided: {guided} → Actual: {actual}"
             confidence = "low"
 
@@ -215,8 +322,7 @@ class CredibilityTracker:
         misses  = sum(1 for r in scored if r["overall_accuracy"] == "miss")
         in_line = sum(1 for r in scored if r["overall_accuracy"] == "in-line")
         total   = len(scored)
-
-        score = round((beats + (in_line * 0.5)) / total * 100)
+        score   = round((beats + (in_line * 0.5)) / total * 100)
 
         if score >= 75:
             label = "High Credibility"
@@ -235,17 +341,16 @@ class CredibilityTracker:
         }
 
     # ------------------------------------------------------------------
-    # STORAGE
+    # HELPERS
     # ------------------------------------------------------------------
 
-    def _load_history(self, ticker: str) -> dict:
-        path = CREDIBILITY_DIR / f"{ticker}.json"
-        if path.exists():
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        return {"ticker": ticker, "records": [], "overall_credibility": None}
-
-    def _save_history(self, ticker: str, history: dict):
-        path = CREDIBILITY_DIR / f"{ticker}.json"
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=2, ensure_ascii=False)
+    def _parse_period(self, period: str) -> tuple:
+        """Parse 'Q3 2024' into (2024, 3)."""
+        try:
+            parts = period.strip().split()
+            quarter = int(parts[0].replace("Q", ""))
+            year = int(parts[1])
+            return year, quarter
+        except Exception:
+            return datetime.now().year, 1
+        
