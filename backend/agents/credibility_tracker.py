@@ -15,11 +15,26 @@ from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
 
+from backend.agents.financial_parser import parse_financial_value
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# When guidance is a single point estimate (not a range), how close does
+# the actual result need to be to still count as "in-line" rather than a
+# beat or a miss? Expressed as a fraction of the guided value. No company
+# hits a single guided number exactly to the decimal, so without a
+# tolerance band, tiny rounding differences would get misclassified as
+# beats or misses -- manufacturing false signal instead of removing it.
+POINT_ESTIMATE_TOLERANCE = {
+    "Revenue": 0.01,        # within 1% of the guided figure
+    "EPS": 0.02,            # within 2% -- small dollar amounts move % more
+    "Gross Margin": 0.005,  # within 0.5 percentage points (50 bps)
+}
+DEFAULT_TOLERANCE = 0.01
 
 
 class CredibilityTracker:
@@ -255,6 +270,62 @@ class CredibilityTracker:
 
         return scores
 
+    def _numeric_compare(self, metric: str, guided_str: str, actual_str: str) -> Optional[dict]:
+        """
+        Deterministically compares a guided figure to an actual reported
+        figure using real parsed numbers -- no AI call involved.
+
+        Same two inputs will always produce the same output, and that
+        output can be shown to anyone as a formula instead of a trust-me
+        claim about an AI's phrasing. Returns None if either figure
+        can't be parsed into a number, so the caller knows to fall back
+        rather than silently guessing.
+        """
+        guided = parse_financial_value(guided_str)
+        actual = parse_financial_value(actual_str)
+
+        if guided is None or actual is None:
+            return None
+
+        if guided.is_range:
+            # Companies often guide a RANGE (e.g. "$21.5-22.0B") because
+            # the exact outcome isn't knowable in advance. Above the top
+            # of the range = beat (under-promised, over-delivered).
+            # Below the bottom = miss (over-promised). Inside the range
+            # = in-line, they did what they said.
+            if actual.midpoint > guided.high:
+                result = "beat"
+            elif actual.midpoint < guided.low:
+                result = "miss"
+            else:
+                result = "in-line"
+        else:
+            # A single point estimate needs a tolerance band, since no
+            # company hits one number exactly. Materially above the
+            # band is a beat, materially below is a miss, small
+            # deviations either way are in-line.
+            tolerance = POINT_ESTIMATE_TOLERANCE.get(metric, DEFAULT_TOLERANCE)
+            pct_diff = (
+                (actual.midpoint - guided.midpoint) / abs(guided.midpoint)
+                if guided.midpoint != 0 else 0.0
+            )
+            if pct_diff > tolerance:
+                result = "beat"
+            elif pct_diff < -tolerance:
+                result = "miss"
+            else:
+                result = "in-line"
+
+        delta = actual.midpoint - guided.midpoint
+        return {
+            "result": result,
+            "guided_parsed": (
+                f"{guided.low:,.2f}-{guided.high:,.2f}" if guided.is_range else f"{guided.low:,.2f}"
+            ),
+            "actual_parsed": f"{actual.midpoint:,.2f}",
+            "delta": round(delta, 4),
+        }
+
     def _assess_metric(
         self,
         metric: str,
@@ -262,42 +333,61 @@ class CredibilityTracker:
         actual: str,
         vs_guidance: str = "",
     ) -> dict:
-        result = "in-line"
-        confidence = "low"
-        note = ""
+        """
+        Determines if guidance was a beat, miss, or in-line for one
+        metric. Tries the numeric comparison FIRST -- real math on real
+        parsed numbers. Only if that fails (guidance was qualitative
+        text with no clean number, e.g. "double-digit growth") does
+        this fall back to reading Claude's own wording, tagged clearly
+        as lower confidence so it's never mistaken for a verified result.
+        """
+        numeric = self._numeric_compare(metric, guided, actual)
+        if numeric is not None:
+            return {
+                "metric": metric,
+                "guided": guided,
+                "actual": actual,
+                "result": numeric["result"],
+                "confidence": "high",
+                "method": "numeric",
+                "note": (
+                    f"Guided {numeric['guided_parsed']} -> Actual {numeric['actual_parsed']} "
+                    f"(delta {numeric['delta']:+,.2f})"
+                ),
+            }
 
         vs = vs_guidance.lower() if vs_guidance else ""
-
         if "beat" in vs:
             result = "beat"
-            confidence = "high"
-            note = vs_guidance
         elif "miss" in vs or "missed" in vs:
             result = "miss"
-            confidence = "high"
-            note = vs_guidance
         elif "in-line" in vs or "inline" in vs or "in line" in vs:
             result = "in-line"
-            confidence = "high"
-            note = vs_guidance
         else:
-            note = f"Guided: {guided} → Actual: {actual}"
-            confidence = "low"
+            result = "unscored"
 
         return {
             "metric": metric,
             "guided": guided,
             "actual": actual,
             "result": result,
-            "confidence": confidence,
-            "note": note,
+            "confidence": "low",
+            "method": "ai_wording_fallback",
+            "note": (
+                f"Could not parse numeric values from '{guided}' / '{actual}'; "
+                f"falling back to AI's own assessment: {vs_guidance or 'none given'}"
+            ),
         }
 
     def _compute_overall(self, scores: list) -> str:
-        if not scores:
+        # "unscored" means neither numeric parsing nor the AI-wording
+        # fallback could determine a result -- there's no signal here,
+        # so it must be excluded rather than silently counted.
+        scored = [s for s in scores if s["result"] != "unscored"]
+        if not scored:
             return "insufficient_data"
-        beats = sum(1 for s in scores if s["result"] == "beat")
-        misses = sum(1 for s in scores if s["result"] == "miss")
+        beats = sum(1 for s in scored if s["result"] == "beat")
+        misses = sum(1 for s in scored if s["result"] == "miss")
         if beats > misses:
             return "beat"
         elif misses > beats:
@@ -306,7 +396,10 @@ class CredibilityTracker:
 
     def _compute_credibility_score(self, history: dict) -> dict:
         records = history.get("records", [])
-        scored = [r for r in records if r.get("overall_accuracy")]
+        scored = [
+            r for r in records
+            if r.get("overall_accuracy") and r["overall_accuracy"] != "insufficient_data"
+        ]
 
         if not scored:
             return {
@@ -316,6 +409,7 @@ class CredibilityTracker:
                 "misses": 0,
                 "in_line": 0,
                 "total": 0,
+                "numeric_verification_rate": None,
             }
 
         beats   = sum(1 for r in scored if r["overall_accuracy"] == "beat")
@@ -331,6 +425,16 @@ class CredibilityTracker:
         else:
             label = "Low Credibility"
 
+        # What fraction of the underlying metric-level scores were
+        # numerically verified vs. AI-wording fallback -- the number
+        # you show a skeptical client who asks "how do I know this
+        # score is real."
+        all_metric_scores = [s for r in records for s in (r.get("accuracy_scores") or [])]
+        numeric_count = sum(1 for s in all_metric_scores if s.get("method") == "numeric")
+        verification_rate = (
+            round(numeric_count / len(all_metric_scores) * 100) if all_metric_scores else None
+        )
+
         return {
             "score": score,
             "label": label,
@@ -338,6 +442,7 @@ class CredibilityTracker:
             "misses": misses,
             "in_line": in_line,
             "total": total,
+            "numeric_verification_rate": verification_rate,
         }
 
     # ------------------------------------------------------------------
