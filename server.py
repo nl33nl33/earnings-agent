@@ -33,7 +33,7 @@ from backend.database import save_analysis, get_credibility_claims, get_credibil
 # ---------------------------------------------------------------------------
 
 # Per-IP limits
-RATE_LIMIT_REQUESTS = 20        # max requests per IP
+RATE_LIMIT_REQUESTS = 5        # max requests per IP
 RATE_LIMIT_WINDOW   = 3600     # per hour (in seconds)
 
 # Daily spend cap — each analysis costs roughly $0.10-0.20 in Claude API calls
