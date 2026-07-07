@@ -32,20 +32,15 @@ from backend.database import save_analysis, get_credibility_claims, get_credibil
 # RATE LIMITING + SPEND CAP
 # ---------------------------------------------------------------------------
 
-# Per-IP limits
-RATE_LIMIT_REQUESTS = 5        # max requests per IP
-RATE_LIMIT_WINDOW   = 3600     # per hour (in seconds)
+RATE_LIMIT_REQUESTS = 5
+RATE_LIMIT_WINDOW   = 3600
+DAILY_REQUEST_CAP   = 50
 
-# Daily spend cap — each analysis costs roughly $0.10-0.20 in Claude API calls
-DAILY_REQUEST_CAP = 50         # max total analyses per day across all users
-
-# In-memory stores (resets on redeploy, which is fine — these are soft limits)
-_ip_requests: dict = defaultdict(list)   # ip -> [timestamps]
+_ip_requests: dict = defaultdict(list)
 _daily_count: dict = {"date": "", "count": 0}
 
 
 def _get_ip(request: Request) -> str:
-    """Get real IP, accounting for Railway's proxy headers."""
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -53,32 +48,22 @@ def _get_ip(request: Request) -> str:
 
 
 def _check_rate_limit(ip: str) -> tuple[bool, str]:
-    """Returns (allowed, error_message)."""
     now = time.time()
     window_start = now - RATE_LIMIT_WINDOW
-
-    # Clean old timestamps
     _ip_requests[ip] = [t for t in _ip_requests[ip] if t > window_start]
-
     if len(_ip_requests[ip]) >= RATE_LIMIT_REQUESTS:
-        minutes = RATE_LIMIT_WINDOW // 60
         return False, f"Rate limit reached. You can run {RATE_LIMIT_REQUESTS} analyses per hour. Please try again later."
-
     _ip_requests[ip].append(now)
     return True, ""
 
 
 def _check_daily_cap() -> tuple[bool, str]:
-    """Returns (allowed, error_message)."""
     today = time.strftime("%Y-%m-%d")
-
     if _daily_count["date"] != today:
         _daily_count["date"] = today
         _daily_count["count"] = 0
-
     if _daily_count["count"] >= DAILY_REQUEST_CAP:
         return False, "Daily analysis limit reached. The platform resets at midnight. Please check back tomorrow."
-
     _daily_count["count"] += 1
     return True, ""
 
@@ -138,7 +123,6 @@ async def get_all_credibility():
 
 @app.get("/api/status")
 async def get_status():
-    """Public endpoint showing current usage vs limits."""
     today = time.strftime("%Y-%m-%d")
     daily_used = _daily_count["count"] if _daily_count["date"] == today else 0
     return JSONResponse(content={
@@ -149,14 +133,28 @@ async def get_status():
     })
 
 
+@app.get("/api/recent-analyses")
+async def get_recent_analyses():
+    try:
+        from backend.database import supabase
+        result = (
+            supabase.table("analyses")
+            .select("ticker, year, quarter, signal, analysis_date")
+            .order("analysis_date", desc=True)
+            .limit(8)
+            .execute()
+        )
+        return JSONResponse(content=result.data or [])
+    except Exception:
+        return JSONResponse(content=[])
+
+
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest, request: Request):
-    # Check daily cap first
     cap_ok, cap_msg = _check_daily_cap()
     if not cap_ok:
         return JSONResponse(status_code=429, content={"error": cap_msg})
 
-    # Check per-IP rate limit
     ip = _get_ip(request)
     rate_ok, rate_msg = _check_rate_limit(ip)
     if not rate_ok:
@@ -231,12 +229,10 @@ async def analyze(req: AnalyzeRequest, request: Request):
             "has_prior_comparison": prior_transcript is not None,
         }
 
-        # Save to Supabase — persists across redeploys
         await asyncio.get_event_loop().run_in_executor(
             None, lambda: save_analysis(req.ticker, req.year, req.quarter, analysis)
         )
 
-        # Save to credibility tracker
         tracker = CredibilityTracker()
         await asyncio.get_event_loop().run_in_executor(
             None, lambda: tracker.record(req.ticker, analysis)

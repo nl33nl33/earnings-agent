@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Earnings Research Agent</title>
+<title>Earnings Agent — AI Investment Research</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:        #0a0e1a;
-    --bg2:       #0f1525;
-    --bg3:       #151d30;
-    --border:    #1e2d4a;
-    --border2:   #243552;
-    --text:      #c8d4e8;
-    --text2:     #6b82a8;
-    --text3:     #3d5278;
-    --amber:     #e8a030;
-    --amber2:    #f0b84a;
-    --green:     #2ecc8a;
-    --red:       #e05c6a;
-    --blue:      #4a9eff;
+    --bg:        #07090f;
+    --bg2:       #0c0f1a;
+    --bg3:       #111520;
+    --border:    #1a2035;
+    --border2:   #202840;
+    --text:      #d4dced;
+    --text2:     #6b7fa0;
+    --text3:     #384560;
+    --amber:     #c8922a;
+    --amber2:    #d9a63c;
+    --green:     #2a9d6f;
+    --red:       #c0404e;
+    --blue:      #3a7fd4;
     --mono:      'DM Mono', monospace;
     --sans:      'DM Sans', sans-serif;
   }
@@ -48,7 +48,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 32px;
-    height: 56px;
+    height: 52px;
     border-bottom: 1px solid var(--border);
     background: var(--bg2);
     flex-shrink: 0;
@@ -58,55 +58,59 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
     color: var(--text);
+    letter-spacing: 0;
   }
 
-  .logo-dot {
-    width: 8px;
-    height: 8px;
+  .logo-mark {
+    width: 22px;
+    height: 22px;
     background: var(--amber);
-    border-radius: 50%;
-    animation: pulse 2s infinite;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+  .logo-mark svg {
+    width: 12px;
+    height: 12px;
+    fill: #07090f;
   }
 
   .nav-links {
     display: flex;
-    gap: 24px;
+    gap: 4px;
     align-items: center;
   }
 
   .nav-link {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
+    font-size: 13px;
     color: var(--text2);
     text-decoration: none;
-    transition: color 0.15s;
+    padding: 5px 12px;
+    border-radius: 4px;
+    transition: all 0.15s;
   }
 
-  .nav-link:hover { color: var(--amber); }
-  .nav-link.active { color: var(--amber); }
+  .nav-link:hover { color: var(--text); background: var(--bg3); }
+  .nav-link.active { color: var(--text); background: var(--bg3); }
 
   /* ── LAYOUT ── */
   .app {
     display: flex;
     flex: 1;
     overflow: hidden;
-    height: calc(100vh - 56px);
+    height: calc(100vh - 52px);
   }
 
   /* ── SIDEBAR ── */
   .sidebar {
-    width: 280px;
+    width: 260px;
     flex-shrink: 0;
     background: var(--bg2);
     border-right: 1px solid var(--border);
@@ -116,31 +120,29 @@
   }
 
   .sidebar-section {
-    padding: 24px;
+    padding: 20px;
     border-bottom: 1px solid var(--border);
   }
 
   .sidebar-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.12em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     color: var(--text3);
     text-transform: uppercase;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
   .input-group {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
 
   .input-label {
     font-size: 11px;
     color: var(--text2);
-    margin-bottom: 6px;
+    margin-bottom: 5px;
     display: block;
-    font-family: var(--mono);
-    letter-spacing: 0.04em;
+    font-weight: 500;
   }
 
   input, select {
@@ -148,10 +150,10 @@
     background: var(--bg3);
     border: 1px solid var(--border2);
     color: var(--text);
-    font-family: var(--mono);
+    font-family: var(--sans);
     font-size: 13px;
-    padding: 9px 12px;
-    border-radius: 4px;
+    padding: 8px 11px;
+    border-radius: 5px;
     outline: none;
     transition: border-color 0.15s;
     appearance: none;
@@ -159,20 +161,18 @@
 
   input:focus, select:focus { border-color: var(--amber); }
   input::placeholder { color: var(--text3); }
-  input[type="text"] { text-transform: uppercase; }
+  input[type="text"] { text-transform: uppercase; font-family: var(--mono); }
 
   .btn-analyze {
     width: 100%;
     background: var(--amber);
-    color: #0a0e1a;
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    color: #07090f;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
     border: none;
-    padding: 11px;
-    border-radius: 4px;
+    padding: 10px;
+    border-radius: 5px;
     cursor: pointer;
     transition: background 0.15s, transform 0.1s;
     margin-top: 4px;
@@ -187,29 +187,51 @@
     transform: none;
   }
 
-  .quick-picks {
+  .recent-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
+    flex-direction: column;
+    gap: 4px;
   }
 
-  .quick-pick {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 4px 10px;
+  .recent-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
     background: var(--bg3);
-    border: 1px solid var(--border2);
-    color: var(--text2);
-    border-radius: 3px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s;
   }
 
-  .quick-pick:hover {
-    border-color: var(--amber);
-    color: var(--amber);
+  .recent-item:hover {
+    border-color: var(--border2);
+    background: var(--bg2);
   }
+
+  .recent-ticker {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .recent-period {
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .recent-signal {
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .recent-signal.positive { background: rgba(42,157,111,0.15); color: var(--green); }
+  .recent-signal.negative { background: rgba(192,64,78,0.15); color: var(--red); }
+  .recent-signal.neutral  { background: rgba(58,127,212,0.12); color: var(--blue); }
 
   .steps-list { padding: 0; }
 
@@ -217,14 +239,14 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 24px;
+    padding: 8px 0;
     font-size: 12px;
     color: var(--text3);
-    font-family: var(--mono);
     transition: color 0.2s;
     border-bottom: 1px solid var(--border);
   }
 
+  .step-item:last-child { border-bottom: none; }
   .step-item.running { color: var(--amber); }
   .step-item.done { color: var(--green); }
   .step-item.error { color: var(--red); }
@@ -256,15 +278,15 @@
     font-family: var(--mono);
     font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
     padding: 4px 10px;
-    border-radius: 3px;
+    border-radius: 4px;
     text-transform: uppercase;
   }
 
-  .signal-badge.positive { background: rgba(46,204,138,0.12); color: var(--green); border: 1px solid rgba(46,204,138,0.3); }
-  .signal-badge.negative { background: rgba(224,92,106,0.12); color: var(--red); border: 1px solid rgba(224,92,106,0.3); }
-  .signal-badge.neutral  { background: rgba(74,158,255,0.12); color: var(--blue); border: 1px solid rgba(74,158,255,0.3); }
+  .signal-badge.positive { background: rgba(42,157,111,0.12); color: var(--green); border: 1px solid rgba(42,157,111,0.25); }
+  .signal-badge.negative { background: rgba(192,64,78,0.12); color: var(--red); border: 1px solid rgba(192,64,78,0.25); }
+  .signal-badge.neutral  { background: rgba(58,127,212,0.12); color: var(--blue); border: 1px solid rgba(58,127,212,0.25); }
 
   .main {
     flex: 1;
@@ -281,38 +303,26 @@
     justify-content: center;
     padding: 60px 40px;
     text-align: center;
-    position: relative;
   }
-
-  .empty-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 40px 40px;
-    opacity: 0.3;
-    pointer-events: none;
-  }
-
-  .empty-inner { position: relative; z-index: 1; }
 
   .empty-title {
-    font-family: var(--mono);
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 300;
-    letter-spacing: -0.02em;
     color: var(--text);
     margin-bottom: 12px;
-    line-height: 1.2;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
   }
 
-  .empty-title span { color: var(--amber); }
+  .empty-title strong {
+    font-weight: 600;
+    color: var(--text);
+  }
 
   .empty-sub {
     font-size: 14px;
     color: var(--text2);
-    max-width: 420px;
+    max-width: 400px;
     line-height: 1.7;
     text-align: center;
     margin: 0 auto;
@@ -320,7 +330,7 @@
 
   .empty-features {
     display: flex;
-    gap: 24px;
+    gap: 16px;
     margin-top: 40px;
     flex-wrap: wrap;
     justify-content: center;
@@ -330,18 +340,16 @@
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 16px 20px;
+    padding: 16px 18px;
     text-align: left;
-    width: 180px;
+    width: 170px;
   }
 
   .feature-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--amber);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 5px;
   }
 
   .feature-desc {
@@ -350,16 +358,69 @@
     line-height: 1.5;
   }
 
+  /* ── ERROR STATE ── */
+  .error-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    text-align: center;
+  }
+
+  .error-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(192,64,78,0.1);
+    border: 1px solid rgba(192,64,78,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 20px;
+  }
+
+  .error-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .error-message {
+    font-size: 13px;
+    color: var(--text2);
+    max-width: 380px;
+    line-height: 1.6;
+    margin: 0 auto 20px;
+  }
+
+  .btn-retry {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-retry:hover { color: var(--text); border-color: var(--border2); }
+
   .memo-container {
     padding: 32px 40px;
-    max-width: 900px;
+    max-width: 880px;
     width: 100%;
     margin: 0 auto;
-    animation: fadeIn 0.4s ease;
+    animation: fadeIn 0.3s ease;
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
@@ -374,16 +435,14 @@
 
   .memo-ticker {
     font-family: var(--mono);
-    font-size: 36px;
-    font-weight: 300;
-    letter-spacing: -0.02em;
+    font-size: 32px;
+    font-weight: 400;
     color: var(--text);
     line-height: 1;
   }
 
   .memo-period {
-    font-family: var(--mono);
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text2);
     margin-top: 6px;
   }
@@ -399,13 +458,12 @@
   .memo-section { margin-bottom: 32px; }
 
   .section-title {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--amber);
-    margin-bottom: 16px;
+    color: var(--text2);
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -420,43 +478,42 @@
 
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: 10px;
     margin-bottom: 16px;
   }
 
   .kpi-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 5px;
     padding: 14px 16px;
   }
 
   .kpi-label {
-    font-family: var(--mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text3);
-    letter-spacing: 0.08em;
+    font-weight: 500;
     text-transform: uppercase;
+    letter-spacing: 0.04em;
     margin-bottom: 6px;
   }
 
   .kpi-value {
     font-family: var(--mono);
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 400;
     color: var(--text);
     line-height: 1.1;
   }
 
   .kpi-sub {
-    font-family: var(--mono);
     font-size: 11px;
     color: var(--text2);
     margin-top: 4px;
   }
 
-  .kpi-growth { font-family: var(--mono); font-size: 12px; margin-top: 4px; }
+  .kpi-growth { font-family: var(--mono); font-size: 11px; margin-top: 4px; }
   .kpi-growth.up   { color: var(--green); }
   .kpi-growth.down { color: var(--red); }
 
@@ -464,7 +521,7 @@
     background: var(--bg2);
     border: 1px solid var(--border);
     border-left: 3px solid var(--amber);
-    border-radius: 4px;
+    border-radius: 5px;
     padding: 18px 20px;
     font-size: 13px;
     color: var(--text);
@@ -483,16 +540,15 @@
   }
 
   .tone-label {
-    font-family: var(--mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text2);
-    width: 60px;
+    width: 70px;
     flex-shrink: 0;
   }
 
   .tone-bar-bg {
     flex: 1;
-    height: 6px;
+    height: 5px;
     background: var(--bg3);
     border-radius: 3px;
     overflow: hidden;
@@ -501,14 +557,14 @@
   .tone-bar-fill {
     height: 100%;
     border-radius: 3px;
-    background: linear-gradient(90deg, var(--amber), var(--amber2));
+    background: var(--amber);
     transition: width 1s ease;
   }
 
   .tone-score {
     font-family: var(--mono);
-    font-size: 13px;
-    color: var(--amber);
+    font-size: 12px;
+    color: var(--text2);
     width: 32px;
     text-align: right;
   }
@@ -516,26 +572,26 @@
   .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
   .tag {
-    font-family: var(--mono);
     font-size: 11px;
-    padding: 3px 9px;
+    padding: 3px 8px;
     border-radius: 3px;
     border: 1px solid var(--border2);
     color: var(--text2);
     background: var(--bg3);
   }
 
-  .tag.new     { border-color: rgba(46,204,138,0.4); color: var(--green); background: rgba(46,204,138,0.07); }
-  .tag.rising  { border-color: rgba(232,160,48,0.4); color: var(--amber); background: rgba(232,160,48,0.07); }
-  .tag.falling { border-color: rgba(224,92,106,0.4); color: var(--red); background: rgba(224,92,106,0.07); }
-  .tag.warning { border-color: rgba(224,92,106,0.4); color: var(--red); background: rgba(224,92,106,0.07); }
+  .tag.new     { border-color: rgba(42,157,111,0.3); color: var(--green); background: rgba(42,157,111,0.07); }
+  .tag.rising  { border-color: rgba(200,146,42,0.3); color: var(--amber); background: rgba(200,146,42,0.07); }
+  .tag.falling { border-color: rgba(192,64,78,0.3); color: var(--red); background: rgba(192,64,78,0.07); }
+  .tag.warning { border-color: rgba(192,64,78,0.3); color: var(--red); background: rgba(192,64,78,0.07); }
 
-  .guidance-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .guidance-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
   .guidance-table th {
     text-align: left;
-    font-size: 10px;
-    letter-spacing: 0.08em;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text3);
     padding: 8px 12px;
@@ -554,23 +610,23 @@
   .dir-badge {
     display: inline-block;
     font-size: 10px;
+    font-family: var(--mono);
     padding: 2px 7px;
-    border-radius: 2px;
+    border-radius: 3px;
     font-weight: 500;
-    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
-  .dir-raised    { background: rgba(46,204,138,0.15); color: var(--green); }
-  .dir-lowered   { background: rgba(224,92,106,0.15); color: var(--red); }
-  .dir-maintained{ background: rgba(74,158,255,0.12); color: var(--blue); }
-  .dir-initiated { background: rgba(232,160,48,0.12); color: var(--amber); }
-  .dir-withdrawn { background: rgba(224,92,106,0.12); color: var(--red); }
+  .dir-raised    { background: rgba(42,157,111,0.12); color: var(--green); }
+  .dir-lowered   { background: rgba(192,64,78,0.12); color: var(--red); }
+  .dir-maintained{ background: rgba(58,127,212,0.12); color: var(--blue); }
+  .dir-initiated { background: rgba(200,146,42,0.12); color: var(--amber); }
+  .dir-withdrawn { background: rgba(192,64,78,0.12); color: var(--red); }
 
   .narrative-item {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 5px;
     padding: 14px 16px;
     margin-bottom: 8px;
   }
@@ -582,11 +638,11 @@
     margin-bottom: 6px;
   }
 
-  .narrative-topic { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+  .narrative-topic { font-size: 13px; font-weight: 500; color: var(--text); }
   .narrative-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
 
   .evasion-meter { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-  .evasion-label { font-family: var(--mono); font-size: 11px; color: var(--text2); width: 120px; }
+  .evasion-label { font-size: 12px; color: var(--text2); width: 100px; }
 
   .concern-item {
     display: flex;
@@ -600,8 +656,8 @@
     font-size: 12px;
   }
 
-  .concern-topic { color: var(--text); font-family: var(--mono); }
-  .concern-quality { font-family: var(--mono); font-size: 11px; }
+  .concern-topic { color: var(--text); }
+  .concern-quality { font-size: 11px; font-family: var(--mono); }
   .concern-quality.direct  { color: var(--green); }
   .concern-quality.evasive { color: var(--red); }
   .concern-quality.partial { color: var(--amber); }
@@ -622,8 +678,8 @@
   .flag-item:last-child { border-bottom: none; }
   .flag-icon { flex-shrink: 0; margin-top: 1px; }
 
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 </style>
 </head>
@@ -631,8 +687,10 @@
 
 <header>
   <div class="logo">
-    <div class="logo-dot"></div>
-    EARNINGS RESEARCH AGENT
+    <div class="logo-mark">
+      <svg viewBox="0 0 12 12"><path d="M2 9 L6 3 L10 9 Z"/></svg>
+    </div>
+    Earnings Agent
   </div>
   <nav class="nav-links">
     <a class="nav-link active" href="/">Analysis</a>
@@ -646,15 +704,15 @@
     <div class="sidebar-section">
       <div class="sidebar-label">New Analysis</div>
       <div class="input-group">
-        <label class="input-label">TICKER</label>
+        <label class="input-label">Ticker</label>
         <input type="text" id="ticker" placeholder="NVDA" maxlength="6">
       </div>
       <div class="input-group">
-        <label class="input-label">YEAR</label>
+        <label class="input-label">Year</label>
         <input type="number" id="year" value="2024" min="2018" max="2026">
       </div>
       <div class="input-group">
-        <label class="input-label">QUARTER</label>
+        <label class="input-label">Quarter</label>
         <select id="quarter">
           <option value="1">Q1</option>
           <option value="2">Q2</option>
@@ -663,21 +721,14 @@
         </select>
       </div>
       <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">
-        RUN ANALYSIS
+        Run Analysis
       </button>
     </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-label">Quick Picks</div>
-      <div class="quick-picks">
-        <div class="quick-pick" onclick="quickPick('NVDA',2024,3)">NVDA Q3</div>
-        <div class="quick-pick" onclick="quickPick('MSFT',2024,2)">MSFT Q2</div>
-        <div class="quick-pick" onclick="quickPick('AAPL',2024,1)">AAPL Q1</div>
-        <div class="quick-pick" onclick="quickPick('META',2024,2)">META Q2</div>
-        <div class="quick-pick" onclick="quickPick('AMZN',2024,1)">AMZN Q1</div>
-        <div class="quick-pick" onclick="quickPick('GOOGL',2024,1)">GOOGL Q1</div>
-        <div class="quick-pick" onclick="quickPick('TSLA',2024,1)">TSLA Q1</div>
-        <div class="quick-pick" onclick="quickPick('AMD',2024,2)">AMD Q2</div>
+    <div class="sidebar-section" id="recentSection">
+      <div class="sidebar-label">Recent Analyses</div>
+      <div class="recent-list" id="recentList">
+        <div style="font-size:12px;color:var(--text3);padding:4px 0;">Loading...</div>
       </div>
     </div>
 
@@ -695,10 +746,9 @@
 
   <main class="main" id="mainContent">
     <div class="empty-state" id="emptyState">
-      <div class="empty-grid"></div>
       <div class="empty-inner">
-        <div class="empty-title">Institutional research,<br><span>autonomously generated.</span></div>
-        <p class="empty-sub">Enter a ticker and quarter to generate a hedge fund-style investment memo with KPI analysis, tone scoring, guidance tracking, and narrative shift detection.</p>
+        <div class="empty-title">AI-powered earnings research,<br><strong>built for serious investors.</strong></div>
+        <p class="empty-sub">Enter a ticker and quarter to generate a structured investment memo with KPI analysis, management tone scoring, guidance tracking, and narrative shift detection.</p>
         <div class="empty-features">
           <div class="empty-feature">
             <div class="feature-label">KPI Extraction</div>
@@ -725,6 +775,34 @@
 
 <script>
 let isAnalyzing = false;
+
+// Load recent analyses from Supabase via the API
+async function loadRecentAnalyses() {
+  try {
+    const response = await fetch('/api/recent-analyses');
+    if (!response.ok) return;
+    const data = await response.json();
+    const list = document.getElementById('recentList');
+
+    if (!data.length) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0;">No analyses yet — run your first one.</div>';
+      return;
+    }
+
+    list.innerHTML = data.slice(0, 8).map(item => `
+      <div class="recent-item" onclick="quickPick('${item.ticker}', ${item.year}, ${item.quarter})">
+        <div>
+          <div class="recent-ticker">${item.ticker}</div>
+          <div class="recent-period">Q${item.quarter} ${item.year}</div>
+        </div>
+        <span class="recent-signal ${item.signal || 'neutral'}">${item.signal || '—'}</span>
+      </div>
+    `).join('');
+  } catch(e) {
+    const list = document.getElementById('recentList');
+    list.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0;">—</div>';
+  }
+}
 
 function quickPick(ticker, year, quarter) {
   document.getElementById('ticker').value = ticker;
@@ -754,6 +832,65 @@ function setStep(num, state) {
   }
 }
 
+function showError(message) {
+  const main = document.getElementById('mainContent');
+
+  // Friendly messages for known error types
+  let title = 'Analysis Unavailable';
+  let body = message;
+
+  if (message.includes('Rate limit')) {
+    title = 'Rate Limit Reached';
+    body = 'You\'ve run 5 analyses this hour. Please wait a few minutes and try again.';
+  } else if (message.includes('Daily analysis limit')) {
+    title = 'Daily Limit Reached';
+    body = 'The platform has reached its daily analysis cap. Please check back tomorrow.';
+  } else if (message.includes('No earnings transcript') || message.includes('Could not find transcript')) {
+    title = 'No Data Available';
+    body = `We couldn't find an earnings transcript for this company and quarter. This usually means the filing isn't available on SEC EDGAR yet, or the ticker may be incorrect. Try a different quarter or double-check the ticker symbol.`;
+  } else if (message.includes('Connection error')) {
+    title = 'Connection Error';
+    body = 'Could not reach the server. Check your connection and try again.';
+  }
+
+  main.innerHTML = `
+    <div class="error-state">
+      <div class="error-icon">—</div>
+      <div class="error-title">${title}</div>
+      <p class="error-message">${body}</p>
+      <button class="btn-retry" onclick="showEmpty()">← Back</button>
+    </div>`;
+}
+
+function showEmpty() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-inner">
+        <div class="empty-title">AI-powered earnings research,<br><strong>built for serious investors.</strong></div>
+        <p class="empty-sub">Enter a ticker and quarter to generate a structured investment memo with KPI analysis, management tone scoring, guidance tracking, and narrative shift detection.</p>
+        <div class="empty-features">
+          <div class="empty-feature">
+            <div class="feature-label">KPI Extraction</div>
+            <div class="feature-desc">Revenue, margins, EPS vs guidance automatically parsed</div>
+          </div>
+          <div class="empty-feature">
+            <div class="feature-label">Tone Analysis</div>
+            <div class="feature-desc">CEO vs CFO confidence scoring with hedging detection</div>
+          </div>
+          <div class="empty-feature">
+            <div class="feature-label">Narrative Shifts</div>
+            <div class="feature-desc">New topics, dropped themes, strategic pivots flagged</div>
+          </div>
+          <div class="empty-feature">
+            <div class="feature-label">Delta View</div>
+            <div class="feature-desc">Quarter-over-quarter changes surfaced automatically</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 async function startAnalysis() {
   if (isAnalyzing) return;
 
@@ -768,21 +905,20 @@ async function startAnalysis() {
 
   isAnalyzing = true;
   document.getElementById('analyzeBtn').disabled = true;
-  document.getElementById('analyzeBtn').textContent = 'ANALYZING...';
+  document.getElementById('analyzeBtn').textContent = 'Analyzing...';
   resetSteps();
 
   const main = document.getElementById('mainContent');
   main.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:24px;padding:60px;">
-      <div style="width:40px;height:40px;border:3px solid var(--border2);border-top-color:var(--amber);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-      <div style="font-family:var(--mono);font-size:13px;color:var(--text2);text-align:center;">
-        Analyzing ${ticker} Q${quarter} ${year}<br>
-        <span style="font-size:11px;color:var(--text3);">Running 5 AI analyses — this takes about 60-90 seconds</span>
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;padding:60px;">
+      <div style="width:36px;height:36px;border:2px solid var(--border2);border-top-color:var(--amber);border-radius:50%;animation:spin 0.9s linear infinite;"></div>
+      <div style="text-align:center;">
+        <div style="font-size:14px;color:var(--text);margin-bottom:4px;">Analyzing ${ticker} Q${quarter} ${year}</div>
+        <div style="font-size:12px;color:var(--text3);">Running 5 AI analyses — typically 60–90 seconds</div>
       </div>
     </div>
   `;
 
-  // Animate sidebar steps while waiting
   const stepDelay = 15000;
   for (let i = 1; i <= 5; i++) {
     setTimeout(() => setStep(i, 'running'), stepDelay * (i - 1));
@@ -796,30 +932,24 @@ async function startAnalysis() {
       body: JSON.stringify({ticker, year, quarter})
     });
 
-    // Mark all steps done
     for (let i = 1; i <= 5; i++) setStep(i, 'done');
 
     const data = await response.json();
 
     if (data.error) {
-      main.innerHTML = `
-        <div style="padding:60px;text-align:center;font-family:var(--mono);color:var(--red);">
-          Error: ${data.error}
-        </div>`;
+      showError(data.error);
       return;
     }
 
     renderMemo(data);
+    loadRecentAnalyses(); // Refresh recent list after successful analysis
 
   } catch(err) {
-    main.innerHTML = `
-      <div style="padding:60px;text-align:center;font-family:var(--mono);color:var(--red);">
-        Connection error: ${err.message}
-      </div>`;
+    showError('Connection error: ' + err.message);
   } finally {
     isAnalyzing = false;
     document.getElementById('analyzeBtn').disabled = false;
-    document.getElementById('analyzeBtn').textContent = 'RUN ANALYSIS';
+    document.getElementById('analyzeBtn').textContent = 'Run Analysis';
   }
 }
 
@@ -841,7 +971,7 @@ function renderMemo(data) {
       </div>
       <div class="memo-meta">
         <span class="signal-badge ${signal}">${signal} signal</span>
-        <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">${analysis.date || ''}</div>
+        <div style="font-size:11px;color:var(--text3);">${analysis.date || ''}</div>
       </div>
     </div>
   `;
@@ -914,8 +1044,8 @@ function renderMemo(data) {
         segHtml += `
           <div class="concern-item">
             <span class="concern-topic">${s.name}</span>
-            <span style="font-family:var(--mono);font-size:12px;color:var(--text)">${s.revenue}</span>
-            <span class="kpi-growth ${(s.growth||'').includes('-')?'down':'up'}" style="font-family:var(--mono);font-size:12px;">${s.growth||''}</span>
+            <span style="font-size:12px;color:var(--text)">${s.revenue}</span>
+            <span class="kpi-growth ${(s.growth||'').includes('-')?'down':'up'}">${s.growth||''}</span>
           </div>`;
       });
       container.innerHTML += `
@@ -986,9 +1116,9 @@ function renderMemo(data) {
           <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-top:8px;">
             ${tone.confidence_rationale || ''}
           </div>
-          <div style="display:flex;gap:16px;margin-top:12px;font-family:var(--mono);font-size:11px;">
-            <span>CEO: <span style="color:var(--text)">${tone.ceo_tone || 'N/A'}</span></span>
-            <span>CFO: <span style="color:var(--text)">${tone.cfo_tone || 'N/A'}</span></span>
+          <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;">
+            <span style="color:var(--text2)">CEO: <span style="color:var(--text)">${tone.ceo_tone || 'N/A'}</span></span>
+            <span style="color:var(--text2)">CFO: <span style="color:var(--text)">${tone.cfo_tone || 'N/A'}</span></span>
             ${tone.ceo_cfo_divergence ? `<span style="color:var(--red)">⚠ Divergence detected</span>` : ''}
           </div>
         </div>
@@ -1010,21 +1140,21 @@ function renderMemo(data) {
 
     newTopics.forEach(t => {
       narHtml += `<div class="narrative-item">
-        <div class="narrative-item-header"><span class="tag new">NEW</span><span class="narrative-topic">${t.topic}</span></div>
+        <div class="narrative-item-header"><span class="tag new">New</span><span class="narrative-topic">${t.topic}</span></div>
         <div class="narrative-body">${t.significance || ''}</div>
       </div>`;
     });
 
     increasing.forEach(t => {
       narHtml += `<div class="narrative-item">
-        <div class="narrative-item-header"><span class="tag rising">↑ RISING</span><span class="narrative-topic">${t.topic}</span></div>
+        <div class="narrative-item-header"><span class="tag rising">↑ Rising</span><span class="narrative-topic">${t.topic}</span></div>
         <div class="narrative-body">${t.evidence || ''}</div>
       </div>`;
     });
 
     dropping.forEach(t => {
       narHtml += `<div class="narrative-item">
-        <div class="narrative-item-header"><span class="tag falling">↓ DROPPING</span><span class="narrative-topic">${t.topic}</span></div>
+        <div class="narrative-item-header"><span class="tag falling">↓ Dropping</span><span class="narrative-topic">${t.topic}</span></div>
         <div class="narrative-body">${t.note || ''}</div>
       </div>`;
     });
@@ -1045,7 +1175,7 @@ function renderMemo(data) {
           <span class="flag-icon" style="color:var(--red)">⚠</span>
           <div>
             <span>${r.risk}</span>
-            ${isNew ? `<span class="tag warning" style="margin-left:8px;font-size:10px;">FIRST MENTION</span>` : ''}
+            ${isNew ? `<span class="tag warning" style="margin-left:8px;font-size:10px;">First mention</span>` : ''}
             ${r.management_response ? `<div style="color:var(--text3);font-size:11px;margin-top:3px;">${r.management_response}</div>` : ''}
           </div>
         </div>`;
@@ -1092,14 +1222,17 @@ function renderMemo(data) {
   }
 
   container.innerHTML += `
-    <div style="padding:24px 0;border-top:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;justify-content:space-between;">
-      <span>Generated by Earnings Research Agent</span>
+    <div style="padding:24px 0;border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;justify-content:space-between;">
+      <span>Earnings Agent</span>
       <span>${new Date().toLocaleString()}</span>
     </div>`;
 
   main.appendChild(container);
   main.scrollTo({top: 0, behavior: 'smooth'});
 }
+
+// Load recent analyses on page load
+loadRecentAnalyses();
 </script>
 
 </body>
