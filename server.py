@@ -9,8 +9,10 @@ import os
 import sys
 import json
 import asyncio
+import time
 from pathlib import Path
-from fastapi import FastAPI
+from collections import defaultdict
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -26,11 +28,74 @@ if str(project_root) not in sys.path:
 from backend.database import save_analysis, get_credibility_claims, get_credibility_score
 
 
+# ---------------------------------------------------------------------------
+# RATE LIMITING + SPEND CAP
+# ---------------------------------------------------------------------------
+
+# Per-IP limits
+RATE_LIMIT_REQUESTS = 5        # max requests per IP
+RATE_LIMIT_WINDOW   = 3600     # per hour (in seconds)
+
+# Daily spend cap — each analysis costs roughly $0.10-0.20 in Claude API calls
+DAILY_REQUEST_CAP = 50         # max total analyses per day across all users
+
+# In-memory stores (resets on redeploy, which is fine — these are soft limits)
+_ip_requests: dict = defaultdict(list)   # ip -> [timestamps]
+_daily_count: dict = {"date": "", "count": 0}
+
+
+def _get_ip(request: Request) -> str:
+    """Get real IP, accounting for Railway's proxy headers."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host
+
+
+def _check_rate_limit(ip: str) -> tuple[bool, str]:
+    """Returns (allowed, error_message)."""
+    now = time.time()
+    window_start = now - RATE_LIMIT_WINDOW
+
+    # Clean old timestamps
+    _ip_requests[ip] = [t for t in _ip_requests[ip] if t > window_start]
+
+    if len(_ip_requests[ip]) >= RATE_LIMIT_REQUESTS:
+        minutes = RATE_LIMIT_WINDOW // 60
+        return False, f"Rate limit reached. You can run {RATE_LIMIT_REQUESTS} analyses per hour. Please try again later."
+
+    _ip_requests[ip].append(now)
+    return True, ""
+
+
+def _check_daily_cap() -> tuple[bool, str]:
+    """Returns (allowed, error_message)."""
+    today = time.strftime("%Y-%m-%d")
+
+    if _daily_count["date"] != today:
+        _daily_count["date"] = today
+        _daily_count["count"] = 0
+
+    if _daily_count["count"] >= DAILY_REQUEST_CAP:
+        return False, "Daily analysis limit reached. The platform resets at midnight. Please check back tomorrow."
+
+    _daily_count["count"] += 1
+    return True, ""
+
+
+# ---------------------------------------------------------------------------
+# MODELS
+# ---------------------------------------------------------------------------
+
 class AnalyzeRequest(BaseModel):
     ticker: str
     year: int
     quarter: int
 
+
+# ---------------------------------------------------------------------------
+# ROUTES
+# ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_ui():
@@ -49,11 +114,8 @@ async def get_credibility(ticker: str):
     from backend.agents.credibility_tracker import CredibilityTracker
     tracker = CredibilityTracker()
     history = tracker.get_history(ticker.upper())
-
-    # Also pull from Supabase and attach credibility score
     score = get_credibility_score(ticker.upper())
     history["supabase_score"] = score
-
     return JSONResponse(content=history)
 
 
@@ -74,8 +136,32 @@ async def get_all_credibility():
     return JSONResponse(content=all_data)
 
 
+@app.get("/api/status")
+async def get_status():
+    """Public endpoint showing current usage vs limits."""
+    today = time.strftime("%Y-%m-%d")
+    daily_used = _daily_count["count"] if _daily_count["date"] == today else 0
+    return JSONResponse(content={
+        "daily_analyses_used": daily_used,
+        "daily_analyses_cap": DAILY_REQUEST_CAP,
+        "daily_analyses_remaining": max(0, DAILY_REQUEST_CAP - daily_used),
+        "rate_limit_per_hour": RATE_LIMIT_REQUESTS,
+    })
+
+
 @app.post("/analyze")
-async def analyze(req: AnalyzeRequest):
+async def analyze(req: AnalyzeRequest, request: Request):
+    # Check daily cap first
+    cap_ok, cap_msg = _check_daily_cap()
+    if not cap_ok:
+        return JSONResponse(status_code=429, content={"error": cap_msg})
+
+    # Check per-IP rate limit
+    ip = _get_ip(request)
+    rate_ok, rate_msg = _check_rate_limit(ip)
+    if not rate_ok:
+        return JSONResponse(status_code=429, content={"error": rate_msg})
+
     try:
         from backend.data.transcript_fetcher import TranscriptFetcher
         from backend.agents.earnings_agent import EarningsAgent
@@ -90,7 +176,7 @@ async def analyze(req: AnalyzeRequest):
         if not transcript:
             return JSONResponse(
                 status_code=404,
-                content={"error": f"Could not find transcript for {req.ticker} Q{req.quarter} {req.year}"}
+                content={"error": f"No earnings transcript found for {req.ticker} Q{req.quarter} {req.year}. The company may not have filed with the SEC for this period, or the transcript isn't available yet."}
             )
 
         prior_quarter = req.quarter - 1 if req.quarter > 1 else 4
@@ -178,3 +264,4 @@ async def analyze(req: AnalyzeRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
+    
