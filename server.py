@@ -33,7 +33,7 @@ from backend.database import save_analysis, get_credibility_claims, get_credibil
 # ---------------------------------------------------------------------------
 
 # Per-IP limits
-RATE_LIMIT_REQUESTS = 5        # max requests per IP
+RATE_LIMIT_REQUESTS = 20        # max requests per IP
 RATE_LIMIT_WINDOW   = 3600     # per hour (in seconds)
 
 # Daily spend cap — each analysis costs roughly $0.10-0.20 in Claude API calls
@@ -264,4 +264,3 @@ async def analyze(req: AnalyzeRequest, request: Request):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
-    
